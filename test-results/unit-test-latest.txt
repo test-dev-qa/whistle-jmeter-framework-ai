@@ -1,0 +1,193 @@
+# whistle.jmeter-exporter unit test report
+# started: 2026-09-02T03:29:55.846Z
+# cwd: D:\zgq_work\cursor_workspace\whistle-jmeter-framework-ai
+# command: node test/run.js
+
+unit tests  dataDir=C:\Users\zgq\AppData\Local\Temp\wje-unit-51512
+files: assertions.test.js, captureConfig.test.js, csvGenerator.test.js, dataStore.test.js, dbConnections.test.js, dbOps.test.js, extractVars.test.js, fsutil.test.js, generalNotify.test.js, index.test.js, jmxExport.test.js, jmxGenerator.test.js, jsonPath.test.js, k6Generator.test.js, markdown.test.js, memoryBridge.test.js, multipart.test.js, mysqlStore.test.js, pdfReport.test.js, pgStore.test.js, pluginRules.test.js, pluginStatus.test.js, postOpStore.test.js, postmanGenerator.test.js, resStatsServer.test.js, shareDocs.test.js, stressBaseline.test.js, stressNotify.test.js, stressPostOps.test.js, stressReportStore.test.js, stressTest.test.js, stressThresholds.test.js, tokenCorrelate.test.js, utils.test.js
+
+(node:51512) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  assertions / equals json path and dedupe
+  ok  assertions / jmx writes JSONPathAssertion
+  ok  assertions / status and header operators
+  ok  captureConfig / postgres engine keeps postgresConnectionId
+  ok  csv / empty throws
+  ok  csv / bom comma escape iso time binary and multipart
+  ok  csv / formula injection prefix
+  ok  csv / quotes and newlines escaped
+  ok  dataStore / replace same id and storage type
+  ok  dataStore / summaries omit bodies; get by ids; last record; delete
+  ok  dataStore / MAX_RECORDS is 10000
+  ok  dataStore / MAX_PERSIST_BODY is 1024KB
+  ok  dataStore / missing record and empty delete
+  ok  dataStore / sqlite keeps bodies off heap until read
+  ok  connStore / toRow maps form fields
+  ok  dbConnections / upsert persists sqlite table and list
+  ok  dbConnections / persistRemote skips without mysql database
+  ok  dbConnections / saving same host db user does not duplicate
+  ok  dbOps / connection description is kept
+  ok  dbOps / testReachable rejects invalid port
+  ok  dbOps / resolveTestPayload reuses stored mysql password
+  ok  dbOps / testConnection postgres falls back to tcp mode
+  ok  dbOps / sql placeholders and query type
+  ok  dbOps / parseResultPath
+  ok  dbOps / save list and dedupe by connection+sql
+  ok  dbOps / jdbc mapping copies first row column
+  ok  dbOps / jmx writes JDBCDataSource and JDBCPostProcessor
+  ok  dbOps / pool name from connection name including IP-like
+  ok  dbOps / resolveSqlVars replaces extract vars
+  ok  dbOps / executeSql rejects write statements
+  ok  extractVars / save list and json extractor
+  ok  extractVars / preview json path and correlate substitutes later request
+  ok  extractVars / jmx writes JSONPostProcessor even when auto correlate off
+  ok  extractVars / setForRecord dedupes same name and same path
+  ok  paths / DATA_DIR uses env set by runner
+  ok  fsutil / atomicWriteFile writes content
+  ok  generalNotify / normalize fields
+  ok  generalNotify / resolveForThreshold merges toggles
+  ok  index / exports uiServer and resStatsServer functions
+  ok  jmx / multipart export uses uploadDir and DO_MULTIPART_POST
+  ok  jmx / correlateToken true writes JSONPostProcessor
+  ok  jmx / no records argument throws
+  ok  jmx / empty or invalid urls throw
+  ok  jmx / sampler cookie manager assertion and skipped hop headers
+  ok  jmx / form urlencoded becomes arguments
+  ok  jmx / binary body not written as raw text
+  ok  jmx / mixed hosts skip request defaults
+  ok  jsonPath / dot and index
+  ok  jsonPath / wildcard and unpack
+  ok  jsonPath / quoted key and recursive
+  ok  jsonPath / db result array first row field
+  ok  jsonPath / lastPathKey and invalid
+  ok  k6Generator / k6JsonSelector strips json path prefix
+  ok  k6Generator / correlate token in script
+  ok  k6Generator / no records throws
+  ok  markdown / heading list code and bold
+  ok  markdown / fence and table
+  ok  markdown / http link allowed, javascript rejected
+  ok  markdown / wrapReadmePage includes title and body
+  ok  markdown / wrapSharePage is full-bleed without help kicker
+  ok  memoryBridge / buildShareAnchorText is pointer-only
+  ok  memoryBridge / dryRun does not call CLI
+  ok  memoryBridge / pinShareDocAnchors batch dryRun
+  ok  memoryBridge / sanitizeTags hardens csv and whitespace
+  ok  memoryBridge / buildHandoverText five lines
+  ok  memoryBridge / addHandover dryRun
+  ok  memoryBridge / resolveMembridgeRunner prefers python module when needed
+  ok  multipart / parseBoundary quoted and raw
+  ok  multipart / toBuffer empty string and buffer
+  ok  multipart / unquoted field plus file saved under uploads
+  ok  multipart / missing boundary treated as binary
+  ok  multipart / json body not multipart
+  ok  multipart / saveMultipart no parts returns null
+  ok  multipart / UPLOAD_ROOT lives under data dir
+  ok  mysqlStore / formatProbeError maps common codes
+  ok  mysqlStore / probe rejects non-mysql type
+  ok  mysqlStore / toPoolConfig requires mysql type and database name
+  ok  mysqlStore / isReadOnlySql allows select-like statements
+  ok  mysqlStore / withPreviewLimit appends limit for select without limit
+  ok  mysqlStore / withPreviewLimit keeps existing limit
+  ok  mysqlStore / executeQuery requires database
+  ok  mysqlStore / default host and port
+  ok  mysqlStore / create table sql is innodb utf8mb4
+  ok  mysqlStore / toColumns maps headers body size timing status time
+  ok  mysqlStore / toColumns duration from start/end; body size from body bytes
+  ok  mysqlStore / sqlite backfill fills capture columns from json
+  ok  pdfReport / toWinAnsi replaces CJK
+  ok  pdfReport / utf16 hex helper
+  ok  pdfReport / buildStressReportPdf returns PDF bytes
+  ok  pdfReport / CJK embeds CID font when system TTF available
+  ok  dbOps / executeSql rejects sqlserver
+  ok  dbOps / executeSql postgres rejects write sql
+  ok  pluginRules / default load uses packaged or builtin rules
+  ok  pluginRules / save then load roundtrip
+  ok  pluginRules / reset restores default protocol
+  ok  pluginRules / oversized text is rejected
+  ok  pluginStatus / set get clear
+  ok  pluginStatus / string error and default scope; message truncated
+  ok  postOpStore / extract vars land in sqlite columns
+  ok  postOpStore / assertions land in sqlite columns
+  ok  postOpStore / db ops and extracts land in sqlite tables
+  ok  postOpStore / mysql ddl creates post-op tables
+  ok  postOpStore / writeKind sync helper exports ensureMysqlSchema
+  ok  postmanGenerator / basic collection
+  ok  postmanGenerator / no records throws
+  ok  resStatsServer / captures json api and passThrough
+  ok  resStatsServer / skips static assets
+  ok  resStatsServer / skips whistle self traffic
+  ok  resStatsServer / skipDuplicates drops consecutive same method+url
+  ok  resStatsServer / initiator from referer and duration from session times
+  ok  resStatsServer / paused capture writes nothing
+  ok  shareDocs / create list update delete md
+  ok  shareDocs / import html and stations
+  ok  shareDocs / detectImport docx extracts text
+  ok  shareDocs / saveMedia and getMedia
+  ok  shareDocs / downloadPayload doc wraps html
+  ok  shareDocs / fileType from filename and video casing
+  ok  shareDocs / sync pack export import roundtrip
+  ok  shareDocs / sync pack stream export import
+  ok  shareDocs / sync pack import accepts raw buffer
+  ok  stressBaseline / set and clear
+  ok  stressBaseline / clearBaseline
+  ok  stressNotify / formatText includes fail items
+  ok  stressNotify / notifyThresholdResult posts webhook on fail
+  ok  stressNotify / skips when pass and webhookOnPass false
+  ok  stressNotify / feishu webhook uses msg_type text
+  ok  stressNotify / probeWebhook posts probe event
+  ok  stressNotify / probeWebhook feishu lark format
+  ok  stressPostOps / applyVars replaces both dialects
+  ok  stressPostOps / attachPostOps and assert fail in stress
+  ok  stressReportStore / save get list delete
+  ok  stressReportStore / prune keeps max reports
+  ok  stressTest / normalizeConfig clamps ranges
+  ok  stressTest / buildRequest skips hop headers
+  ok  stressTest / buildRequest rejects non-http
+  ok  stressTest / percentile
+  ok  stressTest / saveConfig persists under DATA_DIR
+  ok  stressTest / start and stop against local server
+  ok  stressTest / downsampleSeries keeps endpoints
+  ok  stressTest / buildRequest rejects binary body
+  ok  stressTest / rejects start while stopping
+  ok  stressThresholds / normalize clamps
+  ok  stressThresholds / evaluate fail and pass
+  ok  stressThresholds / compareReports deltas
+  ok  stressThresholds / evaluate db latency rule
+  ok  stressThresholds / compareReports includes series
+  ok  stressThresholds / normalize notify toggles
+  ok  tokenCorrelate / findToken prefers access_token
+  ok  tokenCorrelate / parseLeaves skips status copy and keeps business id
+  ok  tokenCorrelate / substitute long value in header and path
+  ok  tokenCorrelate / extractor on login and replace later header
+  ok  tokenCorrelate / html csrf extracted when reused later
+  ok  tokenCorrelate / unused token is not extracted
+  ok  tokenCorrelate / sign fields are skipped
+  ok  tokenCorrelate / response header and cursor reused later
+  ok  tokenCorrelate / nested json string and query substitution
+  ok  tokenCorrelate / location code and disable edit
+  ok  tokenCorrelate / static value seen earlier is not extracted
+  ok  utils / isStaticAsset css js image font
+  ok  utils / isStaticAsset invalid url falls back to path
+  ok  utils / isWhistleSelfTraffic known hosts and ports
+  ok  utils / isWhistleSelfTraffic malformed url with plugin name
+  ok  utils / looksBinary and decodeCapturedBody
+  ok  utils / headers content-type multipart
+  ok  utils / normalizeHeaders joins cookie and other arrays
+  ok  utils / sanitizeXmlText strips control chars
+  ok  utils / createRecordId unique; safeRecordId strips traversal
+  ok  utils / inflateBody gzip deflate and identity
+  ok  utils / limitUtf8Body truncates over MAX_BODY_BYTES
+  ok  utils / truncateUtf8 keeps valid multibyte boundary
+  ok  utils / resourceName last path segment
+  ok  utils / initiatorFromHeaders referer then origin then Other
+  ok  utils / responseTransferSize prefers content-length
+  ok  utils / resourceType from content-type
+  ok  utils / mimeType strips charset params
+  ok  utils / durationMs uses end when later than start
+  ok  utils / formatDuration auto converts ms to s
+
+177 passed, 0 failed, 177 total (10228ms)
+
+# finished: 2026-09-02T03:30:08.471Z
+# duration_ms: 12625
+# exit_code: 0

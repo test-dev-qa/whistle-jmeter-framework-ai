@@ -1,0 +1,44 @@
+{
+  "name": "whistle.jmeter-exporter",
+  "version": "1.1.23",
+  "description": "A whistle plugin to capture traffic and generate JMeter scripts",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/run.js",
+    "test:report": "node scripts/run-unit-tests-report.js",
+    "pack": "npm pack",
+    "clean:pack": "node scripts/clean-pack-artifacts.js",
+    "deploy": "node scripts/pack-install-restart.js",
+    "setup:memory-bridge": "node scripts/setup-memory-bridge.js",
+    "check:memory-bridge": "node scripts/check-memory-bridge.js",
+    "ci": "node scripts/ci.js"
+  },
+  "keywords": [
+    "whistle",
+    "jmeter",
+    "plugin"
+  ],
+  "author": "",
+  "license": "MulanPSL-2.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "files": [
+    "index.js",
+    "resStatsServer.js",
+    "rules.txt",
+    "lib",
+    "ui",
+    "LICENSE",
+    "README.md"
+  ],
+  "dependencies": {
+    "koa": "^2.14.2",
+    "koa-bodyparser": "^4.4.1",
+    "koa-router": "^12.0.0",
+    "mongodb": "^6.18.0",
+    "mysql2": "^3.24.2",
+    "pg": "^8.16.3",
+    "xmlbuilder2": "^3.1.1"
+  }
+}

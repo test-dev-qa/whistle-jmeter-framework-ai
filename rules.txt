@@ -1,0 +1,2 @@
+# 默认将匹配的请求交给插件 resStatsServer 统计
+* whistle.jmeter-exporter://

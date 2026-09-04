@@ -1,0 +1,213 @@
+# 示例 rules.txt 配置（多场景）
+#
+# 此文件展示了 Whistle 规则的各种常见配置
+# 可根据实际需求选择并修改
+
+# ==========================================
+# 场景 1：捕获所有请求（默认，开发模式）
+# ==========================================
+
+# * whistle.jmeter-exporter://
+
+
+# ==========================================
+# 场景 2：仅捕获特定域名
+# ==========================================
+
+# api.example.com whistle.jmeter-exporter://
+# 其他域名的请求将被直接透传，不被拦截
+
+
+# ==========================================
+# 场景 3：按 API 路径过滤（推荐用于生产）
+# ==========================================
+
+# 排除常见静态资源（前置规则）
+# /\.(js|css|jpg|jpeg|png|gif|svg|webp|woff|woff2|ttf|eot|ico)(\?.*)?$/i -
+
+# 排除特定域名
+# *.cdn.* -
+# *.static.* -
+
+# 捕获核心业务 API
+# https://api.example.com/api/* whistle.jmeter-exporter://
+# https://api.example.com/rpc/* whistle.jmeter-exporter://
+# https://api.example.com/v1/* whistle.jmeter-exporter://
+
+# 其他不处理
+# * -
+
+
+# ==========================================
+# 场景 4：支持多环境
+# ==========================================
+
+# 本地开发环境：捕获所有
+# localhost whistle.jmeter-exporter://
+# 127.0.0.1 whistle.jmeter-exporter://
+
+# 测试环境：捕获所有
+# test.example.com whistle.jmeter-exporter://
+# test-api.example.com whistle.jmeter-exporter://
+
+# 预发环境：仅捕获 API
+# pre.example.com/api/* whistle.jmeter-exporter://
+# pre-api.example.com/* whistle.jmeter-exporter://
+
+# 生产环境：不捕获（注释掉或使用 -)
+# prod.example.com -
+# prod-api.example.com -
+
+
+# ==========================================
+# 场景 5：复杂过滤（精细化控制）
+# ==========================================
+
+# 第 1 层：排除项目（前置，优先级最高）
+# -----
+# 排除 CDN 和静态文件服务
+# *.cdn.* -
+# *.static.* -
+# *.oss.* -
+# *.qiniu.* -
+
+# 排除常见文件类型
+# /\.(js|css|json|xml|html)(\?.*)?$/i -
+
+# 排除长连接和 WebSocket
+# /^wss?:/ -
+
+# 排除健康检查和心跳
+# /healthcheck/ -
+# /heartbeat/ -
+# /ping/ -
+# /health/ -
+
+# 排除用户追踪和分析服务
+# *.analytics.* -
+# *.tracker.* -
+# *.mixpanel.* -
+# *.google-analytics.* -
+
+# 排除图片、字体等媒体文件
+# /\.(jpg|jpeg|png|gif|bmp|svg|webp|ico)(\?.*)?$/i -
+# /\.(woff|woff2|ttf|eot|otf)(\?.*)?$/i -
+
+# 排除视频和音频
+# /\.(mp4|webm|ogg|mp3|m4a|wav)(\?.*)?$/i -
+
+# 第 2 层：具体的捕获规则（中间层）
+# -----
+# 仅捕获 HTTPS 的 API 请求
+# https://api.example.com/api/* whistle.jmeter-exporter://
+# https://api.example.com/v1/* whistle.jmeter-exporter://
+# https://api.example.com/v2/* whistle.jmeter-exporter://
+
+# 按业务线分别捕获
+# https://user-api.example.com/* whistle.jmeter-exporter://
+# https://order-api.example.com/* whistle.jmeter-exporter://
+# https://payment-api.example.com/* whistle.jmeter-exporter://
+
+# 捕获特定的 WebAPI
+# https://api.example.com/graphql whistle.jmeter-exporter://
+# https://api.example.com/rpc whistle.jmeter-exporter://
+
+# 第 3 层：通用规则（最后）
+# -----
+# 其他请求都不处理
+# * -
+
+
+# ==========================================
+# 场景 6：使用正则表达式
+# ==========================================
+
+# 捕获所有 /api/v(\d+)/ 路由
+# /https?:\/\/.*\/api\/v\d+\/.*/i whistle.jmeter-exporter://
+
+# 捕获带 token 参数的请求
+# /\?.*token=.*/i whistle.jmeter-exporter://
+
+# 仅捕获 POST/PUT/DELETE 请求（过滤 GET）
+# /^(?!GET).* https:\/\/api\.example\.com\/.*/i whistle.jmeter-exporter://
+
+# 捕获特定格式的域名
+# /https?:\/\/.+\.(example\.com|example\.net)\/api\/.*/i whistle.jmeter-exporter://
+
+
+# ==========================================
+# 场景 7：按 HTTP 方法过滤
+# ==========================================
+
+# 仅捕获 POST 请求（用于生成 JMeter 脚本需要修改数据）
+# POST https://api.example.com/* whistle.jmeter-exporter://
+# PUT https://api.example.com/* whistle.jmeter-exporter://
+# DELETE https://api.example.com/* whistle.jmeter-exporter://
+
+# 排除 OPTIONS 请求（CORS 预检）
+# OPTIONS -
+
+# 捕获所有，除了 GET
+# GET -
+# * whistle.jmeter-exporter://
+
+
+# ==========================================
+# 当前生效的规则（使用此配置）
+# ==========================================
+
+* whistle.jmeter-exporter://
+
+
+# ==========================================
+# 规则语法说明
+# ==========================================
+#
+# 基本格式：<Pattern> <Target>
+#
+# Pattern 类型：
+#   - *                    匹配所有请求
+#   - *.example.com        匹配子域名
+#   - api.example.com      精确匹配域名
+#   - https://...          指定协议
+#   - https://.../*        支持路径通配符
+#   - /regex/              使用正则表达式
+#   - POST https://...     支持 HTTP 方法
+#
+# Target 类型：
+#   - whistle.jmeter-exporter:// 交给本插件处理
+#   - -                         不处理（直接透传）
+#   - http://127.0.0.1:8080     转发到本地服务
+#   - https://other.com         转发到其他服务
+#   - file:///path/to/file      映射到本地文件
+#
+# 优先级：从上到下，遇到第一个匹配的规则即停止，后续规则不再检查
+# 因此具体的规则应该写在通用规则之前
+
+
+# ==========================================
+# 常用快速配置（复制粘贴即用）
+# ==========================================
+#
+# 1. 开发环境（捕获所有）：
+#    * whistle.jmeter-exporter://
+#
+# 2. 生产环境（仅 API）：
+#    /\.(js|css|jpg|png|gif|svg|webp|ico)$/i -
+#    *.cdn.* -
+#    https://api.example.com/* whistle.jmeter-exporter://
+#    * -
+#
+# 3. 多环境：
+#    localhost whistle.jmeter-exporter://
+#    test.example.com whistle.jmeter-exporter://
+#    pre.example.com whistle.jmeter-exporter://
+#    prod.example.com -
+#
+# 4. 精细化过滤（推荐）：
+#    /\.(js|css|png|jpg|gif|webp|ico|woff|woff2|ttf)(\?.*)?$/i -
+#    *.cdn.* -
+#    /^wss?:/ -
+#    https://api.example.com/* whistle.jmeter-exporter://
+#    https://user.example.com/* whistle.jmeter-exporter://
+#    * -

@@ -1,0 +1,3461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whistle JMeter Exporter</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 12px 16px; background-color: #f5f7fa; color: #333;
+            display: flex; flex-direction: column; min-height: 100vh; overflow: hidden;
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; flex-shrink: 0; }
+        .title-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .title { margin: 0; color: #333; font-size: 20px; }
+        .meta { color: #666; font-size: 13px; }
+        .storage-badge {
+            display: inline-flex; align-items: center;
+            padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+            line-height: 1.4; cursor: pointer; border: none; font-family: inherit;
+        }
+        .storage-badge[hidden] { display: none; }
+        .storage-badge.sqlite { background: #e8f5e9; color: #2e7d32; }
+        .storage-badge.json { background: #fff8e1; color: #f57c00; }
+        .storage-badge.memory { background: #eceff1; color: #546e7a; }
+        .storage-badge.mysql { background: #e3f2fd; color: #1565c0; }
+        .storage-badge.fallback { background: #fff3e0; color: #e65100; }
+        .persist-choice { display: flex; flex-direction: column; gap: 12px; margin: 4px 0 12px; }
+        .persist-choice label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45; cursor: pointer; }
+        .persist-mysql-wrap { margin: 8px 0 0 22px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .persist-mysql-wrap select { min-width: 240px; border: 1px solid #d0d7de; border-radius: 4px; padding: 6px 8px; font-size: 13px; }
+        .actions {
+            display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+        }
+        .stress-dialog { width: min(520px, 100%); }
+        .stress-row {
+            display: grid;
+            grid-template-columns: 108px 1fr 96px;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .stress-row label {
+            font-size: 13px;
+            color: #333;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stress-row .tip {
+            display: inline-flex;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1px solid #9e9e9e;
+            color: #757575;
+            font-size: 10px;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            font-weight: 700;
+        }
+        .stress-row input[type="range"] {
+            width: 100%;
+            accent-color: #7c4dff;
+        }
+        .stress-input {
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .stress-input input {
+            width: 100%;
+            border: none;
+            padding: 7px 8px;
+            font-size: 13px;
+            text-align: center;
+            outline: none;
+        }
+        .stress-input .unit {
+            background: #f5f5f5;
+            color: #666;
+            font-size: 12px;
+            padding: 0 8px;
+            display: flex;
+            align-items: center;
+            border-left: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+        .stress-result {
+            background: #f8f7ff;
+            border: 1px solid #e8e0ff;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #555;
+            line-height: 1.55;
+            min-height: 72px;
+            white-space: pre-wrap;
+        }
+        .btn-stress-run {
+            background: #7c4dff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-stress-run:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-stress-save {
+            background: #fff;
+            color: #333;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-stress-stop {
+            background: #fff;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-stress-report {
+            background: #fff;
+            color: #5c6bc0;
+            border: 1px solid #c5cae9;
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .report-dialog {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            display: flex;
+            flex-direction: column;
+            box-shadow: none !important;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        #stressReportModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #fff;
+            z-index: 3000;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .report-dialog .rules-modal-head {
+            flex-shrink: 0;
+            gap: 12px;
+        }
+        .report-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+        .report-dl-wrap { position: relative; }
+        .btn-report-download {
+            border: 1px solid #c5cae9;
+            background: #fff;
+            color: #3949ab;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-report-download:hover { background: #eef0ff; }
+        .report-dl-menu {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 140px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            z-index: 10;
+            overflow: hidden;
+        }
+        .report-dl-menu[hidden] { display: none; }
+        .report-dl-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: #fff;
+            padding: 10px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #37474f;
+        }
+        .report-dl-menu button:hover { background: #f5f7fa; }
+        .report-dialog .rules-modal-body {
+            flex: 1;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            background: #f7f9fb;
+            box-sizing: border-box;
+        }
+        .report-dialog .rules-modal-foot {
+            background: #fff;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .report-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .report-card {
+            background: #fff;
+            border: 1px solid #eceff1;
+            border-radius: 10px;
+            padding: 14px 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            min-width: 0;
+        }
+        .report-card .label { color: #78909c; font-size: 12px; margin-bottom: 8px; }
+        .report-card .value { font-size: 28px; font-weight: 700; color: #263238; line-height: 1.1; }
+        .report-card .unit { font-size: 13px; color: #90a4ae; margin-left: 4px; font-weight: 600; }
+        .report-chart-wrap {
+            border: 1px solid #eceff1;
+            border-radius: 10px;
+            padding: 12px 12px 10px;
+            margin-bottom: 16px;
+            background: #fff;
+            /* 禁止被下方表格挤扁，否则会裁掉 SVG 底部时间轴 */
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            overflow: visible;
+        }
+        .report-chart-canvas {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            height: 300px;
+            box-sizing: border-box;
+            overflow: visible;
+            display: block;
+        }
+        #reportChart, #reportChartFs {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            display: block;
+            cursor: crosshair;
+            overflow: visible;
+        }
+        .report-chart-head {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 28px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #455a64;
+            gap: 8px;
+        }
+        .report-chart-title { position: relative; z-index: 1; flex-shrink: 0; }
+        .report-chart-head-actions {
+            margin-left: auto;
+            position: relative;
+            z-index: 2;
+            flex-shrink: 0;
+        }
+        .btn-chart-fs {
+            border: 1px solid #cfd8dc;
+            background: #fff;
+            color: #546e7a;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-chart-fs:hover { background: #f5f7fa; color: #37474f; border-color: #90a4ae; }
+        .report-chart-time-axis {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 4px;
+            margin: 2px 132px 0 58px;
+            min-height: 18px;
+            font-size: 11px;
+            color: #78909c;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+        .report-chart-time-axis span {
+            flex: 1 1 0;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .report-chart-time-axis span:first-child { text-align: left; }
+        .report-chart-time-axis span:last-child { text-align: right; }
+        .report-legend {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            justify-content: center;
+            font-size: 12px;
+            color: #607d8b;
+            font-weight: 500;
+            max-width: calc(100% - 200px);
+            pointer-events: none;
+        }
+        .report-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .report-legend span::before {
+            content: ''; display: inline-block; width: 12px; height: 2px; border-radius: 1px;
+        }
+        .report-legend .rps::before { background: #ff9800; }
+        .report-legend .rt::before { background: #42a5f5; }
+        .report-legend .fail::before { background: #ef5350; }
+        .report-legend .vu::before { background: #90a4ae; height: 8px; width: 12px; border-radius: 2px; opacity: 0.7; }
+        #reportChartFsModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #fff;
+            z-index: 3200;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .chart-fs-dialog {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            display: flex;
+            flex-direction: column;
+            box-shadow: none !important;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .chart-fs-dialog .rules-modal-head { flex-shrink: 0; }
+        .chart-fs-dialog .rules-modal-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px 16px;
+            background: #f7f9fb;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .chart-fs-canvas {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 360px;
+            width: 100%;
+            background: #fff;
+            border: 1px solid #eceff1;
+            border-radius: 10px;
+            padding: 8px 8px 4px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .chart-fs-time-axis {
+            margin: 6px 140px 0 64px;
+        }
+        .report-chart-tooltip {
+            position: absolute;
+            z-index: 5;
+            min-width: 180px;
+            pointer-events: none;
+            background: rgba(255,255,255,0.96);
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(38,50,56,0.12);
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #455a64;
+            line-height: 1.55;
+        }
+        .report-chart-tooltip .tt-time {
+            font-weight: 700;
+            color: #263238;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+        .report-chart-tooltip .tt-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .report-chart-tooltip .tt-row .k { color: #78909c; }
+        .report-chart-tooltip .tt-row .v { font-weight: 600; color: #263238; }
+        .report-chart-tooltip .dot {
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+        }
+        .report-table-wrap {
+            overflow: auto;
+            flex: 1 1 auto;
+            min-height: 220px;
+            max-height: none;
+            max-width: 100%;
+            min-width: 0;
+            width: 100%;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .report-alert-banner {
+            margin-bottom: 12px;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .report-alert-banner.pass {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            color: #2e7d32;
+        }
+        .report-alert-banner.fail {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+            color: #c62828;
+        }
+        .report-alert-banner[hidden] { display: none; }
+        .report-alert-list { margin: 6px 0 0; padding-left: 18px; }
+        .report-card.warn { border-color: #ef9a9a; background: #fff8f8; }
+        .report-card.ok { border-color: #a5d6a7; }
+        .btn-report-tool {
+            border: 1px solid #c5cae9;
+            background: #fff;
+            color: #3949ab;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-report-tool:hover { background: #eef0ff; }
+        .threshold-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .threshold-grid label { display: block; font-size: 12px; color: #546e7a; margin-bottom: 4px; font-weight: 600; }
+        .threshold-grid input[type="number"],
+        .threshold-grid input[type="text"],
+        .threshold-grid input[type="url"],
+        .threshold-grid select {
+            width: 100%; border: 1px solid #d0d7de; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+            box-sizing: border-box;
+        }
+        .threshold-notify {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px dashed #e0e6eb;
+        }
+        .threshold-notify .notify-hint {
+            font-size: 12px;
+            color: #546e7a;
+            line-height: 1.5;
+            margin: 0 0 8px;
+        }
+        .threshold-notify .notify-summary {
+            font-size: 12px;
+            color: #37474f;
+            margin-bottom: 10px;
+        }
+        .threshold-notify .notify-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .compare-overlay-wrap {
+            border: 1px solid #eceff1;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 14px;
+            background: #fff;
+        }
+        .compare-overlay-wrap .report-chart-title { font-weight: 600; font-size: 13px; color: #455a64; }
+        .compare-overlay-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 16px;
+            margin: 8px 0 10px;
+            font-size: 12px;
+            color: #607d8b;
+        }
+        .compare-overlay-legend span::before {
+            content: '';
+            display: inline-block;
+            width: 14px;
+            height: 3px;
+            margin-right: 6px;
+            vertical-align: middle;
+            border-radius: 2px;
+        }
+        .compare-overlay-legend .b-rt::before { background: #90caf9; }
+        .compare-overlay-legend .c-rt::before { background: #1565c0; }
+        .compare-overlay-legend .b-rps::before { background: #ffcc80; }
+        .compare-overlay-legend .c-rps::before { background: #ef6c00; }
+        .compare-overlay-canvas {
+            width: 100%;
+            height: 220px;
+            position: relative;
+        }
+        .compare-overlay-canvas svg { display: block; width: 100%; height: 100%; }
+        .compare-pick {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .compare-pick label { display: block; font-size: 12px; color: #546e7a; margin-bottom: 4px; font-weight: 600; }
+        .compare-pick select {
+            width: 100%; border: 1px solid #d0d7de; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+        }
+        .compare-summary {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .compare-card {
+            border: 1px solid #eceff1;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #fff;
+        }
+        .compare-card .label { font-size: 12px; color: #78909c; margin-bottom: 6px; }
+        .compare-card .vals { font-size: 13px; color: #455a64; }
+        .compare-card .delta { font-weight: 700; margin-top: 4px; }
+        .compare-card .delta.up { color: #c62828; }
+        .compare-card .delta.down { color: #2e7d32; }
+        .compare-card .delta.flat { color: #78909c; }
+        .compare-counts {
+            margin: 0 0 10px;
+            font-size: 12px;
+            color: #607d8b;
+            line-height: 1.5;
+        }
+        .compare-status {
+            display: inline-block;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .compare-status.both { background: #e8f5e9; color: #2e7d32; }
+        .compare-status.added { background: #e3f2fd; color: #1565c0; }
+        .compare-status.removed { background: #fff3e0; color: #ef6c00; }
+        .compare-dialog {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            display: flex;
+            flex-direction: column;
+            box-shadow: none !important;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        #stressCompareModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #fff;
+            z-index: 3100;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .compare-dialog .rules-modal-head {
+            flex-shrink: 0;
+        }
+        .compare-dialog .rules-modal-body {
+            flex: 1;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            background: #f7f9fb;
+            box-sizing: border-box;
+        }
+        .compare-dialog .rules-modal-foot {
+            background: #fff;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .compare-dialog .report-table-wrap {
+            flex: 1 1 auto;
+            min-height: 220px;
+            max-height: none;
+        }
+        @media (max-width: 900px) {
+            .threshold-grid, .compare-pick, .compare-summary { grid-template-columns: 1fr 1fr; }
+        }
+        .report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .report-table th, .report-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; white-space: nowrap; }
+        .report-table th { background: #fafafa; position: sticky; top: 0; }
+        .report-api-method {
+            display: inline-block; min-width: 42px; text-align: center;
+            border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 700; margin-right: 6px;
+        }
+        .report-api-method.GET { background: #e3f2fd; color: #1565c0; }
+        .report-api-method.POST { background: #e8f5e9; color: #2e7d32; }
+        .report-api-method.PUT { background: #fff3e0; color: #ef6c00; }
+        .report-api-method.DELETE { background: #ffebee; color: #c62828; }
+        .report-execution-wrap { flex: 0 0 auto; background: #fff; border: 1px solid #eceff1; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+        .report-execution-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #eceff1; }
+        .report-execution-title { font-size: 14px; font-weight: 600; color: #37474f; }
+        .report-execution-tabs { display: flex; gap: 4px; }
+        .report-execution-tabs button { border: 0; border-radius: 5px; background: transparent; color: #607d8b; cursor: pointer; padding: 4px 8px; font-size: 12px; }
+        .report-execution-tabs button.active { background: #eef3ff; color: #3949ab; font-weight: 600; }
+        .report-execution-filters { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+        .report-execution-search, .report-execution-time-input { height: 30px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; color: #37474f; font-size: 12px; outline: none; }
+        .report-execution-search { width: 210px; padding: 0 9px; }
+        .report-execution-time-input { width: 180px; padding: 0 6px; }
+        .report-execution-search:focus, .report-execution-time-input:focus { border-color: #5c6bc0; box-shadow: 0 0 0 2px rgba(92, 107, 192, .12); }
+        .report-execution-time-range { display: flex; align-items: center; gap: 5px; color: #90a4ae; }
+        .report-execution-clear { height: 30px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; color: #607d8b; cursor: pointer; padding: 0 9px; font-size: 12px; }
+        .report-execution-clear:hover { color: #3949ab; border-color: #9fa8da; }
+        .report-execution-note { margin-left: auto; color: #90a4ae; font-size: 12px; }
+        .report-dialog .report-table-wrap { flex: 0 0 auto; min-height: 0; max-height: 320px; margin-bottom: 16px; }
+        .report-execution-list { max-height: 360px; overflow: auto; }
+        .report-execution-row { display: grid; grid-template-columns: auto minmax(200px, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 9px 14px; border-bottom: 1px solid #f1f3f4; font-size: 12px; }
+        .report-execution-row:last-child { border-bottom: 0; }
+        .report-execution-state { padding: 2px 6px; border-radius: 4px; background: #e8f5e9; color: #2e7d32; }
+        .report-execution-state.fail { background: #ffebee; color: #c62828; }
+        .report-execution-link { overflow: hidden; border: 0; padding: 0; background: transparent; color: #37474f; cursor: pointer; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+        .report-execution-link:hover { color: #1a73e8; text-decoration: underline; }
+        .report-execution-status { color: #43a047; white-space: nowrap; }
+        .report-execution-status.fail { color: #e53935; }
+        .report-execution-time { color: #546e7a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .report-execution-latency { color: #607d8b; white-space: nowrap; }
+        .report-execution-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 42px; padding: 6px 14px; border-top: 1px solid #eceff1; color: #607d8b; font-size: 12px; }
+        .report-execution-pagination select, .report-execution-pagination button { height: 28px; border: 1px solid #dfe3e8; border-radius: 5px; background: #fff; color: #546e7a; font-size: 12px; }
+        .report-execution-pagination select { padding: 0 5px; }
+        .report-execution-pagination button { min-width: 54px; padding: 0 8px; cursor: pointer; }
+        .report-execution-pagination button:hover:not(:disabled) { color: #3949ab; border-color: #9fa8da; }
+        .report-execution-pagination button:disabled { cursor: not-allowed; opacity: .45; }
+        .report-execution-page-info { min-width: 90px; text-align: center; font-variant-numeric: tabular-nums; }
+        @media (max-width: 1200px) {
+            .report-execution-head { flex-wrap: wrap; }
+            .report-execution-filters { order: 3; width: 100%; margin-left: 0; }
+            .report-execution-note { margin-left: auto; }
+        }
+        .report-api-link { border: 0; background: transparent; color: #1a73e8; cursor: pointer; padding: 2px 0; font: inherit; text-align: left; }
+        .report-api-link:hover { text-decoration: underline; }
+        #stressApiDetailModal { z-index: 3200; justify-content: flex-end; padding: 0; background: rgba(15, 23, 42, .22); }
+        .stress-api-detail-dialog { width: min(680px, 92vw); height: 100%; max-height: 100%; margin: 0 0 0 auto; border-radius: 0; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.15); }
+        .stress-api-detail-dialog .rules-modal-body { overflow: auto; background: #f7f9fb; }
+        .api-detail-section { background: #fff; border: 1px solid #eceff1; border-radius: 8px; margin-bottom: 12px; padding: 14px; }
+        .api-detail-section h4 { margin: 0 0 10px; font-size: 14px; color: #263238; }
+        .api-detail-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 12px; color: #546e7a; }
+        .api-detail-meta strong { display: block; color: #263238; font-size: 16px; margin-top: 3px; }
+        .api-detail-url { word-break: break-all; color: #37474f; font-family: Consolas, monospace; font-size: 12px; }
+        .api-detail-code { max-height: 230px; overflow: auto; margin: 0; padding: 10px; border-radius: 6px; background: #f5f7fa; color: #263238; font: 12px/1.55 Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+        .api-detail-failure { border-left: 3px solid #ef5350; padding-left: 10px; margin-top: 12px; }
+        .report-list {
+            margin-bottom: 12px;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+        .report-list select {
+            width: 100%; border: 1px solid #d0d7de; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+        }
+        @media (max-width: 900px) {
+            .report-cards { grid-template-columns: 1fr 1fr; }
+        }
+        /* —— 分享文档 —— */
+        #shareDocsModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #f5f6fa;
+            z-index: 3200;
+            overflow: hidden;
+        }
+        .share-shell {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            display: flex !important;
+            flex-direction: row;
+            overflow: hidden;
+            background: #f5f6fa;
+        }
+        .share-side {
+            width: 280px;
+            flex: 0 0 280px;
+            background: #fff;
+            border-right: 1px solid #eceff1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .share-side-head {
+            padding: 18px 18px 12px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #263238;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .share-side-section {
+            padding: 8px 14px 4px;
+            font-size: 12px;
+            color: #90a4ae;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .share-nav-item, .share-station-item {
+            margin: 4px 12px;
+            padding: 12px 12px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            background: #fafbfd;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .share-nav-item:hover, .share-station-item:hover { background: #f3f0ff; }
+        .share-nav-item.active {
+            border-color: #7c4dff;
+            background: #f6f2ff;
+            box-shadow: 0 0 0 1px rgba(124,77,255,0.12);
+        }
+        .share-nav-item .t, .share-station-item .t { font-size: 14px; font-weight: 600; color: #37474f; }
+        .share-nav-item .s, .share-station-item .s { font-size: 12px; color: #90a4ae; margin-top: 4px; word-break: break-all; }
+        .share-station-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .share-station-item .meta { flex: 1; min-width: 0; }
+        .share-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            white-space: nowrap;
+        }
+        .share-badge.draft { background: #fff3e0; color: #ef6c00; }
+        .share-side-foot {
+            margin-top: auto;
+            padding: 12px 16px 18px;
+            border-top: 1px solid #f0f2f5;
+        }
+        .share-side-foot button {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #7c4dff;
+            font-weight: 600;
+            font-size: 13px;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .share-side-foot button:hover { background: #f6f2ff; }
+        .share-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            margin: 12px;
+            border-radius: 12px;
+            border: 1px solid #eceff1;
+            overflow: hidden;
+        }
+        .share-main-head {
+            padding: 18px 20px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .share-main-head h3 { margin: 0; font-size: 20px; color: #263238; }
+        .share-mb-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 999px;
+            white-space: nowrap;
+            cursor: default;
+        }
+        .share-mb-badge.ok { background: #e8f5e9; color: #2e7d32; }
+        .share-mb-badge.warn { background: #fff3e0; color: #e65100; }
+        .share-mb-badge.unknown { background: #eceff1; color: #607d8b; }
+        .share-main-head-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .share-toolbar {
+            padding: 8px 20px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .share-count { font-size: 13px; color: #78909c; font-weight: 600; }
+        .share-search {
+            flex: 1;
+            min-width: 180px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 8px 12px 8px 32px;
+            font-size: 13px;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2390a4ae' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3-3'/%3E%3C/svg%3E") 10px center no-repeat;
+        }
+        .share-toolbar .btn-share-primary {
+            background: #7c4dff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .share-toolbar .btn-share-ghost {
+            background: #fff;
+            color: #5c6bc0;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .share-table-wrap { flex: 1; overflow: auto; padding: 0 12px 16px; min-height: 0; }
+        .share-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .share-table th, .share-table td { padding: 14px 12px; border-bottom: 1px solid #f0f2f5; text-align: left; vertical-align: middle; }
+        .share-table th { color: #90a4ae; font-weight: 600; font-size: 12px; position: sticky; top: 0; background: #fff; }
+        .share-doc-title { font-weight: 600; color: #37474f; }
+        .share-doc-title-link {
+            display: inline;
+            font-weight: 600;
+            color: #1565c0;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            background: none;
+            border: 0;
+            padding: 0;
+            font: inherit;
+            text-align: left;
+        }
+        .share-doc-title-link:hover { color: #0d47a1; text-decoration-thickness: 2px; }
+        .share-doc-title-link:visited { color: #1565c0; }
+        .share-doc-slug { font-size: 12px; color: #90a4ae; margin-top: 4px; }
+        .share-version-diff-bar {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px;
+            font-size: 13px;
+        }
+        .share-version-diff-bar select { min-width: 140px; padding: 4px 8px; font-size: 12px; }
+        .share-version-diff-panel { margin-top: 12px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+        .share-version-diff-head {
+            padding: 8px 12px; background: #f5f5f5; font-size: 12px; color: #555;
+        }
+        .share-version-diff-body {
+            margin: 0; padding: 10px 12px; max-height: 28vh; overflow: auto;
+            font-family: Consolas, 'Courier New', monospace; font-size: 12px; line-height: 1.45;
+            background: #fafafa; white-space: pre-wrap; word-break: break-all;
+        }
+        .share-version-diff-body .diff-add { color: #2e7d32; background: #e8f5e9; display: block; }
+        .share-version-diff-body .diff-del { color: #c62828; background: #ffebee; display: block; }
+        .share-fmt {
+            display: inline-block;
+            min-width: 42px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #ede7f6;
+            color: #6a1b9a;
+        }
+        .share-fmt.html, .share-fmt.htm { background: #e3f2fd; color: #1565c0; }
+        .share-fmt.doc, .share-fmt.docx { background: #e8f5e9; color: #2e7d32; }
+        .share-fmt.jpg, .share-fmt.jpeg, .share-fmt.png, .share-fmt.gif, .share-fmt.webp { background: #fff3e0; color: #ef6c00; }
+        .share-fmt.mp4, .share-fmt.webm, .share-fmt.mov, .share-fmt.avi { background: #fce4ec; color: #c2185b; }
+        .share-doc-viewer {
+            position: fixed;
+            inset: 0;
+            z-index: 4000;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+        }
+        .share-doc-viewer[hidden] { display: none !important; }
+        .share-doc-viewer-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #1e293b;
+            color: #e2e8f0;
+            flex-shrink: 0;
+        }
+        .share-doc-viewer-bar .t { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .share-doc-viewer-bar button {
+            border: 1px solid #475569;
+            background: #334155;
+            color: #f8fafc;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .share-doc-viewer-bar button:hover { background: #475569; }
+        .share-doc-viewer iframe {
+            flex: 1;
+            width: 100%;
+            border: 0;
+            background: #fff;
+        }
+        .share-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .share-row-actions button {
+            border: 1px solid #e0e6eb;
+            background: #fff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #546e7a;
+        }
+        .share-row-actions button:hover { border-color: #7c4dff; color: #7c4dff; }
+        .share-empty { text-align: center; color: #90a4ae; padding: 48px 16px; }
+        .share-editor-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .share-editor-grid textarea {
+            width: 100%;
+            min-height: 320px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 12px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        .share-preview {
+            border: 1px solid #eceff1;
+            border-radius: 8px;
+            padding: 12px 14px;
+            min-height: 320px;
+            overflow: auto;
+            background: #fafbfd;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        @media (max-width: 900px) {
+            .share-shell { flex-direction: column; }
+            .share-side { width: 100%; flex: 0 0 auto; max-height: 40%; }
+            .share-editor-grid { grid-template-columns: 1fr; }
+        }
+        .actions button, .actions input, .actions select { padding: 7px 12px; border-radius: 4px; font-size: 13px; }
+        .actions button { border: none; cursor: pointer; font-weight: 600; }
+        .btn-refresh { background-color: #4CAF50; color: white; min-width: 64px; transition: background-color 0.15s ease, opacity 0.15s ease; }
+        .btn-refresh.loading { background-color: #388e3c; opacity: 0.85; cursor: wait; }
+        .btn-refresh.done { background-color: #2e7d32; }
+        .btn-refresh:disabled { cursor: wait; }
+        .btn-pause { background-color: #607d8b; color: white; }
+        .btn-pause.on { background-color: #ff9800; }
+        .btn-clear { background-color: #f44336; color: white; }
+        .btn-delete { background-color: #e91e63; color: white; }
+        .btn-capture { background-color: #009688; color: white; }
+        .btn-capture.on { background-color: #ff5722; }
+        .btn-export { background-color: #2196F3; color: white; }
+        .btn-export-csv { background-color: #FF9800; color: white; }
+        .btn-rules { background-color: #5c6bc0; color: white; }
+        .btn-stress { background-color: #7c4dff; color: white; }
+        .btn-settings { background-color: #455a64; color: white; }
+        .btn-share { background-color: #8e24aa; color: white; }
+        .actions .doc-link {
+            margin-left: 4px; color: #1565c0; font-size: 13px; font-weight: 600;
+            text-decoration: none; padding: 7px 10px; white-space: nowrap;
+        }
+        .actions .doc-link:hover { text-decoration: underline; }
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; flex-shrink: 0; }
+        .toolbar input[type="search"], .toolbar input[type="number"], .toolbar select {
+            border: 1px solid #d0d7de; background: white; min-width: 0;
+        }
+        .toolbar input[type="search"] { flex: 1; min-width: 180px; }
+        #websocketFramesModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #f5f7fa;
+            overflow: hidden;
+            z-index: 3250;
+        }
+        #websocketFramesModal[hidden] { display: none !important; }
+        .ws-frame-dialog {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            background: #f5f7fa;
+        }
+        .ws-frame-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            background: #fff;
+            border-bottom: 1px solid #e4e8ed;
+            flex-shrink: 0;
+        }
+        .ws-frame-head h3 { margin: 0; font-size: 17px; color: #263238; }
+        .ws-frame-head .hint { margin-right: auto; }
+        .ws-frame-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 12px 18px;
+            background: #fff;
+            border-bottom: 1px solid #e4e8ed;
+            flex-shrink: 0;
+        }
+        .ws-frame-toolbar input, .ws-frame-toolbar select {
+            border: 1px solid #d0d7de;
+            border-radius: 4px;
+            background: #fff;
+            padding: 7px 9px;
+            font-size: 13px;
+        }
+        .ws-frame-toolbar input[type="search"] { min-width: 240px; flex: 1; }
+        .ws-frame-toolbar button { padding: 7px 12px; border: 1px solid #d0d7de; border-radius: 4px; background: #fff; color: #455a64; cursor: pointer; font-weight: 600; }
+        .ws-frame-toolbar button:hover { border-color: #90caf9; background: #e3f2fd; }
+        .ws-frame-toolbar .ws-clear-btn { color: #c62828; border-color: #ef9a9a; }
+        .ws-frame-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 38%); gap: 12px; padding: 12px 18px 18px; min-height: 0; flex: 1; }
+        .ws-frame-table-wrap, .ws-frame-detail { min-height: 0; overflow: auto; background: #fff; border: 1px solid #e1e6eb; border-radius: 6px; }
+        .ws-frame-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+        .ws-frame-table th, .ws-frame-table td { padding: 9px 10px; border-bottom: 1px solid #edf0f2; text-align: left; vertical-align: top; }
+        .ws-frame-table th { position: sticky; top: 0; background: #fafbfc; color: #607d8b; z-index: 1; }
+        .ws-frame-table tr { cursor: pointer; }
+        .ws-frame-table tr:hover, .ws-frame-table tr.selected { background: #eef6ff; }
+        .ws-frame-table .ws-time { width: 96px; white-space: nowrap; color: #607d8b; }
+        .ws-frame-table .ws-direction { width: 86px; white-space: nowrap; font-weight: 600; }
+        .ws-frame-table .ws-protocol { width: 92px; }
+        .ws-frame-table .ws-connection { width: 24%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ws-direction.outgoing { color: #1565c0; }
+        .ws-direction.incoming { color: #2e7d32; }
+        .ws-frame-detail { padding: 14px; }
+        .ws-frame-detail h4 { margin: 0 0 8px; color: #263238; font-size: 14px; }
+        .ws-frame-detail dl { display: grid; grid-template-columns: 90px 1fr; gap: 7px 10px; margin: 0 0 14px; font-size: 12px; }
+        .ws-frame-detail dt { color: #90a4ae; }
+        .ws-frame-detail dd { margin: 0; color: #455a64; word-break: break-all; }
+        .ws-frame-detail pre { margin: 0; padding: 10px; min-height: 180px; max-height: calc(100% - 130px); overflow: auto; border-radius: 4px; background: #f6f8fa; color: #263238; font: 12px/1.55 Consolas, 'Courier New', monospace; white-space: pre-wrap; word-break: break-all; }
+        @media (max-width: 800px) {
+            .ws-frame-layout { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 1fr) minmax(220px, 42%); padding: 8px; }
+            .ws-frame-head { padding: 12px; }
+            .ws-frame-toolbar { padding: 10px 12px; }
+            .ws-frame-toolbar input[type="search"] { min-width: 140px; }
+        }
+        .filter-time-range {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+            font-size: 13px;
+            color: #555;
+            white-space: nowrap;
+        }
+        .filter-time-range input[type="datetime-local"] {
+            width: 168px;
+            border: 1px solid #d0d7de;
+            background: white;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 12px;
+            color: #333;
+        }
+        .btn-filter-clear {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            color: #546e7a;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-filter-clear:hover { background: #f3f6fb; color: #37474f; }
+        .toolbar label { font-size: 13px; color: #555; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+        .toolbar input[type="number"] { width: 64px; }
+        .toolbar .response-time-filter input[type="number"] { width: 76px; }
+        .table-container {
+            background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            overflow: auto; flex: 0 1 calc(32vh + 80px); max-height: calc(32vh + 80px); min-height: 120px;
+        }
+        .detail-resizer {
+            flex: 0 0 12px; height: 12px; position: relative; cursor: row-resize; touch-action: none;
+            outline: none;
+        }
+        .detail-resizer::before {
+            content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 2px;
+            border-radius: 999px; background: #d0d7de; transition: background .15s, height .15s, top .15s;
+        }
+        .detail-resizer:hover::before, .detail-resizer:focus-visible::before, .detail-resizer.is-dragging::before {
+            top: 4px; height: 4px; background: #2196f3;
+        }
+        body.is-detail-resizing, body.is-detail-resizing * { cursor: row-resize !important; user-select: none !important; }
+        .table-container table.record-table { table-layout: fixed; width: 100%; }
+        tr.virt-pad, tr.virt-pad:hover { background: transparent !important; cursor: default; }
+        tr.virt-pad td { padding: 0 !important; border: 0 !important; line-height: 0; }
+        .record-table col.c-check { width: 40px; }
+        .record-table col.c-proto { width: 72px; }
+        .record-table col.c-method { width: 76px; }
+        .record-table col.c-url { width: 21%; }
+        .record-table col.c-name { width: 12%; }
+        .record-table col.c-type { width: 12%; }
+        .record-table col.c-init { width: 10%; }
+        .record-table col.c-size { width: 8%; }
+        .record-table col.c-timing { width: 10%; }
+        .record-table col.c-status { width: 7%; }
+        .record-table col.c-time { width: 8%; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        th { background-color: #f8f9fa; font-weight: 600; color: #555; position: sticky; top: 0; }
+        tr:hover { background-color: #f1f1f1; }
+        tr.selected { background-color: #e3f2fd; }
+        tr { cursor: pointer; }
+        .method { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .method.GET { background-color: #e1f5fe; color: #0288d1; }
+        .method.POST { background-color: #e8f5e9; color: #388e3c; }
+        .method.PUT { background-color: #fff8e1; color: #f9a825; }
+        .method.PATCH { background-color: #f3e5f5; color: #7b1fa2; }
+        .method.DELETE { background-color: #ffebee; color: #c62828; }
+        .method.OPTIONS { background-color: #eceff1; color: #546e7a; }
+        .proto-badge {
+            display: inline-block; margin-right: 6px; padding: 1px 5px; border-radius: 3px;
+            font-size: 10px; font-weight: 700; vertical-align: middle; letter-spacing: 0.02em;
+        }
+        .proto-ws { background: #e8eaf6; color: #3949ab; }
+        .proto-wss { background: #e8eaf6; color: #3949ab; }
+        .proto-http { background: #eceff1; color: #455a64; }
+        .proto-https { background: #e0f2f1; color: #00695c; }
+        .proto-grpc { background: #fce4ec; color: #c2185b; }
+        .proto-hint { color: #5c6bc0; margin-top: -4px; }
+        .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status-ok { background-color: #e8f5e9; color: #388e3c; }
+        .status-redirect { background-color: #fff3e0; color: #f57c00; }
+        .status-error { background-color: #ffebee; color: #d32f2f; }
+        .url-col { max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .name-col { max-width: 200px; white-space: nowrap; }
+        .type-col { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #555; font-size: 12px; }
+        .name-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .name-icon {
+            flex-shrink: 0; width: 16px; height: 16px; border-radius: 2px;
+            font-size: 9px; font-weight: 700; line-height: 16px; text-align: center;
+            background: #fff3e0; color: #ef6c00; font-family: Consolas, 'Courier New', monospace;
+        }
+        .name-icon.document { background: #e3f2fd; color: #1565c0; }
+        .name-icon.script { background: #fff8e1; color: #f9a825; }
+        .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .initiator-col { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .initiator-link { color: #1565c0; text-decoration: underline; }
+        .initiator-other { color: #888; }
+        .size-col, .timing-col { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        th.size-col, th.timing-col { text-align: right; }
+        .timing-wrap { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+        .timing-bar {
+            display: inline-block; height: 8px; background: #81c784; border-radius: 2px;
+            min-width: 2px; vertical-align: middle;
+        }
+        .timing-text { min-width: 52px; text-align: right; color: #444; }
+        .timing-alert .timing-text, .timing-text.timing-alert {
+            color: #c62828; font-weight: 700;
+        }
+        .timing-alert .timing-bar { background: #e53935; }
+        .empty-state { text-align: center; padding: 40px; color: #888; }
+        .detail {
+            margin-top: 12px; background: white; border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08); padding: 12px 16px;
+            flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .detail h3 { margin: 0 0 8px; font-size: 14px; flex-shrink: 0; }
+        .detail > .hint { flex-shrink: 0; }
+        .detail-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            flex: 1 1 auto; min-height: 0;
+        }
+        .msg-col { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+        .detail pre, .detail textarea.msg-body {
+            margin: 0; overflow: auto; background: #f6f8fa; padding: 10px; border-radius: 4px;
+            font-size: 12px; white-space: pre-wrap; word-break: break-all;
+            font-family: Consolas, 'Courier New', monospace;
+        }
+        .msg-block {
+            flex: 1 1 0; display: flex; flex-direction: column; min-height: 0; margin-bottom: 10px;
+        }
+        .msg-block:last-child { margin-bottom: 0; }
+        .msg-block-head {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-shrink: 0;
+        }
+        .msg-block-head h3 { margin: 0; flex: 1; }
+        .msg-col-head {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-shrink: 0;
+        }
+        .msg-col-head h3 { margin: 0; font-size: 15px; }
+        .msg-col-head .msg-col-spacer { flex: 1; }
+        .btn-copy, .btn-format {
+            border: 1px solid #d0d7de; background: #fff; color: #444; border-radius: 4px;
+            padding: 2px 8px; font-size: 12px; cursor: pointer; font-weight: 600; white-space: nowrap;
+        }
+        .btn-copy:hover, .btn-format:hover { background: #e3f2fd; border-color: #90caf9; }
+        .btn-copy.ok { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+        .detail textarea.msg-body {
+            width: 100%; flex: 1 1 0%; min-height: 0; height: auto; max-height: none;
+            resize: none; border: 1px solid #e0e0e0; display: block;
+        }
+        .detail textarea.msg-body:focus { outline: none; border-color: #2196F3; background: #fff; }
+        .hint { color: #888; font-size: 12px; }
+        .error-banner {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            margin-bottom: 12px; padding: 8px 12px; border-radius: 6px;
+            background: #ffebee; color: #b71c1c; font-size: 13px; flex-shrink: 0;
+        }
+        .error-banner[hidden] { display: none; }
+        .error-banner button {
+            border: none; background: transparent; color: #b71c1c;
+            cursor: pointer; font-weight: 600; white-space: nowrap;
+        }
+        .rules-actions {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            margin-top: 8px; flex-wrap: wrap;
+        }
+        .rules-actions .hint { margin-right: auto; }
+        .rules-actions button, .rules-modal-foot button {
+            padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px;
+        }
+        .btn-reset-rules { background: #eceff1; color: #455a64; }
+        .btn-save-rules { background: #2196F3; color: white; }
+        .btn-close-rules { background: #607d8b; color: white; }
+        .btn-ghost {
+            border: 1px solid #d0d7de; background: #fff; color: #333;
+            border-radius: 4px; padding: 6px 10px; font-size: 13px; cursor: pointer; font-weight: 600;
+        }
+        .btn-ghost:hover { background: #f3f6fb; }
+        .app-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 28px;
+            transform: translateX(-50%) translateY(12px);
+            z-index: 3400;
+            max-width: min(420px, calc(100vw - 32px));
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.45;
+            color: #fff;
+            background: #37474f;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .app-toast.is-visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .app-toast.is-ok { background: #2e7d32; }
+        .app-toast.is-error { background: #c62828; }
+        .app-toast.is-info { background: #1565c0; }
+        .app-toast[hidden] { display: none !important; }
+        #storageModal { z-index: 1050; }
+        #storageModal.storage-above-general { z-index: 3160; }
+        #stressThresholdModal, #stressCompareModal { z-index: 3100; }
+        #generalSettingsModal { z-index: 3150; }
+        #shareDocsModal { z-index: 3200; }
+        #shareDocFormModal, #shareStationFormModal { z-index: 3300; }
+        #memoryHandoverModal { z-index: 3360; }
+        /* 全屏弹层选择器 specificity 更高，必须显式压住 hidden，否则会盖住列表 */
+        #generalSettingsModal[hidden],
+        #storageModal[hidden],
+        #shareDocsModal[hidden],
+        #shareDocFormModal[hidden],
+        #shareStationFormModal[hidden],
+        #memoryHandoverModal[hidden],
+        #shareDocViewer[hidden],
+        #stressReportModal[hidden],
+        #stressCompareModal[hidden],
+        #reportChartFsModal[hidden] {
+            display: none !important;
+        }
+        #generalSettingsModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #f5f6fa;
+            overflow: hidden;
+        }
+        .gs-nav-item {
+            margin: 4px 12px;
+            padding: 11px 14px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            color: #546e7a;
+            font-size: 14px;
+            font-weight: 600;
+            background: transparent;
+            text-align: left;
+            width: calc(100% - 24px);
+            box-sizing: border-box;
+        }
+        .gs-nav-item:hover { background: #f3f0ff; color: #4527a0; }
+        .gs-nav-item.active {
+            background: #f3e5f5;
+            color: #6a1b9a;
+            border-color: #ce93d8;
+        }
+        .gs-panel { display: none; padding: 8px 4px 24px; }
+        .gs-panel.active { display: block; }
+        .gs-form-card {
+            max-width: 720px;
+            border: 1px solid #eceff1;
+            border-radius: 10px;
+            padding: 18px 20px;
+            background: #fff;
+        }
+        .gs-form-card h4 {
+            margin: 0 0 6px;
+            font-size: 15px;
+            color: #263238;
+        }
+        .gs-form-card .desc {
+            margin: 0 0 16px;
+            font-size: 12px;
+            color: #90a4ae;
+            line-height: 1.5;
+        }
+        .gs-field { margin-bottom: 14px; }
+        .gs-field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #546e7a;
+        }
+        .gs-field input[type="text"],
+        .gs-field input[type="url"],
+        .gs-field input[type="email"],
+        .gs-field input[type="number"],
+        .gs-field select,
+        .gs-field textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            background: #fff;
+        }
+        .gs-field textarea { min-height: 72px; resize: vertical; }
+        .gs-inline {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .gs-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #455a64;
+            margin-bottom: 12px;
+        }
+        .gs-list {
+            border: 1px solid #eceff1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .gs-list-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 13px;
+        }
+        .gs-list-row:last-child { border-bottom: 0; }
+        .gs-list-row .meta { flex: 1; min-width: 0; }
+        .gs-list-row .name { font-weight: 600; color: #37474f; }
+        .gs-list-row .sub { color: #90a4ae; font-size: 12px; margin-top: 2px; word-break: break-all; }
+        .gs-list-row button {
+            border: 1px solid #e0e6eb;
+            background: #fff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            color: #546e7a;
+        }
+        .gs-list-row button:hover { border-color: #7c4dff; color: #7c4dff; }
+        .gs-list-empty { padding: 20px; text-align: center; color: #90a4ae; font-size: 13px; }
+        .gs-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .gs-actions .btn-save-rules,
+        .gs-actions .btn-close-rules,
+        .gs-actions .btn-ghost {
+            margin: 0;
+        }
+        .gs-actions .hint { margin-right: auto; min-height: 1.2em; }
+        .gs-tag {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        @media (max-width: 900px) {
+            .gs-inline { grid-template-columns: 1fr; }
+        }
+        #shareDocFormModal.rules-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            align-items: stretch;
+            justify-content: stretch;
+            background: #fff;
+            overflow: hidden;
+        }
+        .share-editor-dialog {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            display: flex !important;
+            flex-direction: column;
+            overflow: hidden;
+            background: #fff;
+        }
+        .share-editor-dialog .rules-modal-head {
+            flex-shrink: 0;
+            border-bottom: 1px solid #eceff1;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .share-editor-dialog .rules-modal-head > span {
+            font-size: 18px;
+            font-weight: 700;
+            color: #263238;
+        }
+        .share-editor-dialog .rules-modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 18px 8px;
+            box-sizing: border-box;
+        }
+        .share-editor-dialog .rules-modal-foot {
+            flex-shrink: 0;
+            border-top: 1px solid #eceff1;
+            background: #fff;
+        }
+        .share-editor-meta {
+            flex-shrink: 0;
+            margin-bottom: 12px;
+        }
+        .share-editor-dialog .share-editor-grid {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .share-editor-dialog .share-editor-pane {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .share-editor-dialog .share-editor-pane > label {
+            flex-shrink: 0;
+            display: block;
+            font-size: 12px;
+            color: #546e7a;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .share-editor-dialog textarea#shareDocContent,
+        .share-editor-dialog .share-rich-editor,
+        .share-editor-dialog .share-preview {
+            flex: 1 1 auto;
+            min-height: 0;
+            height: auto;
+        }
+        .share-editor-dialog textarea#shareDocContent {
+            resize: none;
+        }
+        .share-editor-surface {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .share-editor-surface [hidden] { display: none !important; }
+        .share-editor-toolbar {
+            flex-shrink: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            border-bottom: 1px solid #eceff1;
+            background: #fafbfd;
+        }
+        .share-rich-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        /* legacy alias — prefer .share-editor-surface */
+        .share-rich-toolbar {
+            flex-shrink: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 8px;
+            border-bottom: 1px solid #eceff1;
+            background: #fafbfd;
+        }
+        .share-editor-toolbar button,
+        .share-editor-toolbar label.share-rich-upload,
+        .share-rich-toolbar button,
+        .share-rich-toolbar label.share-rich-upload {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #455a64;
+            cursor: pointer;
+            line-height: 1.4;
+        }
+        .share-editor-toolbar button:hover,
+        .share-editor-toolbar label.share-rich-upload:hover,
+        .share-rich-toolbar button:hover,
+        .share-rich-toolbar label.share-rich-upload:hover {
+            border-color: #7c4dff;
+            color: #7c4dff;
+        }
+        .share-editor-toolbar .sep,
+        .share-rich-toolbar .sep {
+            width: 1px;
+            background: #e0e6eb;
+            margin: 0 4px;
+            align-self: stretch;
+        }
+        .share-rich-editor {
+            flex: 1 1 auto;
+            min-height: 220px;
+            overflow: auto;
+            padding: 12px 14px;
+            font-size: 14px;
+            line-height: 1.6;
+            outline: none;
+            color: #263238;
+        }
+        .share-rich-editor:empty:before {
+            content: attr(data-placeholder);
+            color: #90a4ae;
+        }
+        textarea.share-md-editor,
+        textarea.share-html-source {
+            flex: 1 1 auto;
+            min-height: 220px;
+            width: 100%;
+            box-sizing: border-box;
+            border: none;
+            border-radius: 0;
+            padding: 12px 14px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            background: #fff;
+            color: #263238;
+            outline: none;
+            resize: none;
+        }
+        .share-rich-editor img,
+        .share-preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 6px 0;
+        }
+        .share-rich-editor video,
+        .share-preview video {
+            max-width: 100%;
+            display: block;
+            margin: 8px 0;
+            background: #000;
+            border-radius: 6px;
+        }
+        .share-rich-editor iframe.share-embed,
+        .share-preview iframe.share-embed {
+            width: 100%;
+            min-height: 320px;
+            border: 0;
+            border-radius: 8px;
+            margin: 8px 0;
+        }
+        @media (max-width: 900px) {
+            .share-editor-dialog .share-editor-grid { grid-template-columns: 1fr; }
+        }
+        .rules-modal {
+            position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0, 0, 0, 0.35);
+            display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .rules-modal[hidden] { display: none; }
+        .rules-modal-dialog {
+            width: min(680px, 100%);
+            background: #fff; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        }
+        .rules-modal-dialog.correlate-dialog { width: min(960px, 100%); }
+        .correlate-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .correlate-table th, .correlate-table td {
+            border: 1px solid #eee; padding: 6px 8px; text-align: left; vertical-align: top;
+        }
+        .correlate-table th { background: #f6f8fa; position: sticky; top: 0; }
+        .correlate-table input[type="text"] {
+            width: 100%; min-width: 90px; border: 1px solid #d0d7de; border-radius: 4px; padding: 4px 6px;
+        }
+        .correlate-scroll { max-height: 52vh; overflow: auto; }
+        .correlate-toolbar {
+            display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;
+        }
+        .correlate-toolbar input[type="search"],
+        .correlate-toolbar select {
+            border: 1px solid #d0d7de; border-radius: 4px; padding: 5px 8px; font-size: 12px;
+        }
+        .correlate-toolbar input[type="search"] { min-width: 140px; flex: 1 1 140px; }
+        .correlate-toolbar .corr-bulk-btn {
+            border: 1px solid #d0d7de; background: #fff; border-radius: 4px;
+            padding: 4px 10px; font-size: 12px; cursor: pointer;
+        }
+        .correlate-toolbar .corr-bulk-btn:hover { background: #f6f8fa; }
+        .correlate-summary { font-size: 12px; color: #57606a; margin-left: auto; }
+        .correlate-table tr.corr-row-warn td { background: #fff8e6; }
+        .correlate-table tr.corr-row-off td { opacity: 0.55; }
+        .kind-tag.token { background: #ddf4ff; color: #0969da; }
+        .kind-tag.refreshToken { background: #ffebe9; color: #cf222e; }
+        .kind-tag.cursor { background: #fff8c5; color: #9a6700; }
+        .msg-col-head .btn-rules {
+            padding: 7px 12px; border: none; border-radius: 4px; font-size: 13px;
+            cursor: pointer; font-weight: 600; white-space: nowrap;
+        }
+        .msg-col-head .btn-rules:hover { background-color: #3f51b5; }
+        .post-op-wrap { position: relative; display: inline-block; flex-shrink: 0; }
+        .post-op-menu {
+            position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
+            min-width: 240px; background: #fff; border: 1px solid #d0d7de; border-radius: 8px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 8px 0;
+        }
+        .post-op-menu[hidden] { display: none; }
+        .post-op-menu button {
+            display: block; width: 100%; text-align: left; border: none; background: transparent;
+            padding: 10px 18px; font-size: 14px; cursor: pointer;
+        }
+        .post-op-menu button:hover { background: #f3f6fb; }
+        .post-op-menu .menu-label {
+            padding: 6px 18px 8px; font-size: 13px; color: #888; font-weight: 600;
+        }
+        .rules-modal-dialog.extract-dialog,
+        .rules-modal-dialog.db-dialog {
+            width: min(1200px, 96vw); max-height: 94vh; display: flex; flex-direction: column;
+        }
+        .db-dialog .rules-modal-body { overflow: auto; flex: 1; }
+        .extract-dialog .rules-modal-body { overflow: auto; flex: 1; }
+        .extract-form {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 16px; margin-bottom: 12px;
+        }
+        .extract-form.db-form { grid-template-columns: 1fr 1fr; }
+        .req::after { content: ' *'; color: #e53935; }
+        .db-conn-row { display: flex; gap: 8px; align-items: stretch; }
+        .db-conn-row select { flex: 1; }
+        .db-conn-row .btn-icon {
+            border: 1px solid #d0d7de; background: #fff; border-radius: 4px;
+            padding: 0 10px; cursor: pointer; font-size: 13px; white-space: nowrap;
+        }
+        .db-conn-row .btn-icon:hover { background: #f3f6fb; }
+        .db-sql-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .db-sql-head > label { flex: 0 0 auto; white-space: nowrap; }
+        .db-sql-head-hint {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin: 0;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.4;
+            cursor: pointer;
+            user-select: none;
+        }
+        .db-sql-head-hint:not(.expanded) {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .db-sql-head-hint.expanded {
+            white-space: normal;
+            background: #f6f8fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #555;
+        }
+        .db-sql-head-hint code {
+            font-size: 11px;
+            background: #fff;
+            padding: 0 3px;
+            border-radius: 3px;
+        }
+        .db-sql-head .db-dyn-wrap { flex: 0 0 auto; margin-left: auto; }
+        .db-dyn-wrap { position: relative; display: flex; gap: 8px; align-items: center; }
+        .btn-dyn {
+            border: 1px solid #ce93d8; background: #f3e5f5; color: #7b1fa2;
+            border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer; font-weight: 600;
+        }
+        .btn-dyn:hover { background: #e1bee7; }
+        .btn-run-sql {
+            border-color: #64b5f6; background: #e3f2fd; color: #1565c0;
+        }
+        .btn-run-sql:hover { background: #bbdefb; }
+        .db-dyn-menu { right: 0; left: auto; min-width: 200px; max-height: 220px; overflow: auto; }
+        #dbSql { min-height: 140px; font-family: Consolas, 'Courier New', monospace; }
+        .db-note {
+            background: #f6f8fa; border: 1px solid #e5e7eb; border-radius: 6px;
+            padding: 10px 12px; font-size: 12px; color: #555; margin-top: 12px;
+        }
+        .db-note pre, .db-sql-result {
+            margin: 8px 0 0; background: #fff; padding: 8px 10px; border-radius: 4px;
+            font-size: 12px; overflow: auto; max-height: 260px;
+            font-family: Consolas, 'Courier New', monospace;
+        }
+        .db-sql-result.ok { border: 1px solid #c8e6c9; }
+        .db-sql-result.err { border: 1px solid #ffcdd2; color: #c62828; white-space: pre-wrap; }
+        .db-ex-active { background: #e3f2fd; }
+        .db-ex-active td { background: #e3f2fd; }
+        #dbJpTool { margin-top: 12px; min-height: 240px; }
+        .db-add-var:hover { text-decoration: underline; }
+        #dbConnFormModal { z-index: 3350; }
+        #dbConnFormModal[hidden] { display: none !important; }
+        .rules-modal-dialog.conn-list-dialog { width: min(960px, 100%); max-height: 88vh; display: flex; flex-direction: column; }
+        .conn-list-dialog .rules-modal-body { overflow: auto; flex: 1; padding-bottom: 24px; }
+        .conn-list-dialog .rules-modal-foot { background: #fff; position: relative; z-index: 1; }
+        .conn-list-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .conn-list-bar input[type="search"] {
+            flex: 1; border: 1px solid #d0d7de; border-radius: 6px; padding: 7px 10px; font-size: 13px;
+        }
+        .btn-conn-new {
+            background: #5c6bc0; color: #fff; border: none; border-radius: 6px;
+            padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+        }
+        .btn-conn-new:hover { background: #3f51b5; }
+        .conn-desc { color: #666; font-size: 12px; }
+        .conn-more { position: relative; display: inline-block; z-index: 5; }
+        .conn-more > button {
+            border: 1px solid #d0d7de; background: #fff; border-radius: 4px;
+            padding: 2px 8px; cursor: pointer; font-weight: 700;
+        }
+        .conn-more-menu {
+            min-width: 120px; right: 0; left: auto;
+            top: auto; bottom: calc(100% + 4px); z-index: 40;
+        }
+        .conn-more-menu button.danger { color: #c62828; }
+        .rules-modal-dialog.conn-form-dialog { width: min(640px, 100%); max-height: 90vh; display: flex; flex-direction: column; }
+        .conn-form-dialog .rules-modal-body { overflow: auto; flex: 1; }
+        .conn-form-dialog .extract-form { grid-template-columns: 1fr 1fr; }
+        .conn-form-dialog .extract-form .span-2 { grid-column: 1 / -1; }
+        .conn-section { font-size: 13px; font-weight: 700; margin: 8px 0 10px; color: #333; }
+        .btn-test-conn {
+            border: none; background: transparent; color: #5c6bc0;
+            cursor: pointer; font-size: 13px; font-weight: 600; padding: 4px 0;
+        }
+        .btn-test-conn:hover { text-decoration: underline; }
+        .extract-form label, .extract-field label { display: block; font-size: 12px; color: #555; font-weight: 600; margin-bottom: 4px; }
+        .extract-form input, .extract-form select, .extract-form textarea, .extract-field input, .extract-field select, .extract-field textarea {
+            width: 100%; border: 1px solid #d0d7de; border-radius: 4px; padding: 6px 8px; font-size: 13px;
+            box-sizing: border-box;
+        }
+        .extract-form input.field-invalid,
+        .extract-field input.field-invalid {
+            border-color: #e53935;
+            background: #fff8f8;
+            box-shadow: 0 0 0 2px rgba(229, 57, 53, 0.12);
+        }
+        .req-mark { color: #e53935; margin-left: 2px; font-weight: 700; }
+        #extractStatus.is-error { color: #c62828; font-weight: 600; }
+        #extractStatus.is-ok { color: #2e7d32; }
+        .extract-radios { display: flex; gap: 12px; align-items: center; font-size: 13px; flex-wrap: wrap; }
+        .extract-radios label { font-weight: 500; color: #333; margin: 0; display: flex; align-items: center; gap: 4px; }
+        .jp-tool { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 12px; min-height: 280px; }
+        .extract-form [hidden], #jpJsonFields[hidden], #extractHeaderWrap[hidden], #extractMethodWrap[hidden],
+        #assertJsonFields[hidden], #assertHeaderWrap[hidden], #assertJpTool[hidden], #assertExpected[hidden] {
+            display: none !important;
+        }
+        .jp-pane { border: 1px solid #e5e7eb; border-radius: 6px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+        .jp-pane-head { padding: 8px 10px; background: #f6f8fa; font-weight: 700; font-size: 13px; border-bottom: 1px solid #eee; }
+        .jp-tree, .jp-result {
+            margin: 0; padding: 10px; overflow: auto; flex: 1; font-size: 12px;
+            font-family: Consolas, 'Courier New', monospace; background: #fff; max-height: 42vh;
+        }
+        .jp-node { position: relative; line-height: 1.55; }
+        .jp-key { color: #0550ae; }
+        .jp-str { color: #0a7b34; }
+        .jp-num { color: #9a6700; }
+        .jp-extract {
+            display: none; margin-left: 8px; border: 1px solid #90caf9; background: #e3f2fd;
+            color: #1565c0; border-radius: 3px; padding: 0 6px; font-size: 11px; cursor: pointer; font-weight: 600;
+        }
+        .jp-node:hover > .jp-extract { display: inline; }
+        .jp-right { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+        .jp-switch { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+        .extract-list { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+        .extract-list th, .extract-list td { border: 1px solid #eee; padding: 6px 8px; text-align: left; }
+        .extract-list th { background: #f6f8fa; }
+        .extract-list input, .extract-list select {
+            width: 100%; border: 1px solid #d0d7de; border-radius: 4px; padding: 4px 6px; font-size: 12px;
+        }
+        .assert-op { display: flex; gap: 8px; align-items: center; }
+        .assert-op select { width: 140px; }
+        .assert-op input { flex: 1; }
+        .assert-result.pass { color: #2e7d32; font-weight: 600; }
+        .assert-result.fail { color: #c62828; font-weight: 600; }
+        @media (max-width: 900px) {
+            .jp-tool, .extract-form { grid-template-columns: 1fr; }
+        }
+        .rules-modal-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; border-bottom: 1px solid #eee; font-weight: 700;
+        }
+        .rules-modal-close {
+            border: none; background: transparent; font-size: 22px; line-height: 1;
+            cursor: pointer; color: #666; padding: 0 4px;
+        }
+        .rules-modal-body { padding: 14px 16px 8px; }
+        .rules-modal-body fieldset {
+            border: 1px solid #d0d7de; border-radius: 4px; margin: 0; padding: 10px 12px 12px;
+        }
+        .rules-modal-body legend {
+            font-size: 13px; font-weight: 700; padding: 0 8px; width: auto; margin: 0 4px;
+        }
+        .rules-modal-body textarea {
+            width: 100%; min-height: 220px; resize: vertical;
+            font-family: Consolas, 'Courier New', monospace; font-size: 13px; line-height: 1.45;
+            padding: 8px 10px; border: 1px solid #d0d7de; border-radius: 4px; background: #fafbfc;
+        }
+        .rules-modal-body textarea:focus { outline: none; border-color: #2196F3; background: #fff; }
+        .rules-modal-foot {
+            display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+            padding: 10px 16px 14px; flex-wrap: wrap;
+        }
+        .rules-modal-foot .hint { margin-right: auto; }
+        @media (max-width: 900px) {
+            .detail-grid { grid-template-columns: 1fr; overflow: auto; }
+            .table-container { max-height: calc(28vh + 80px); flex-basis: calc(28vh + 80px); }
+            .msg-block { min-height: 110px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="appToast" class="app-toast" hidden role="status" aria-live="polite"></div>
+
+    <div class="header">
+        <div class="title-wrap">
+            <h2 class="title">流量捕获 / JMeter 导出</h2>
+            <span class="meta" id="statsText">0 条</span>
+            <button type="button" class="storage-badge" id="storageBadge" hidden onclick="openStorageModal()"></button>
+        </div>
+        <div class="actions">
+            <button class="btn-settings" type="button" onclick="openGeneralSettingsModal()">通用设置</button>
+            <button class="btn-share" type="button" onclick="openShareDocsModal()">分享文档</button>
+            <button class="btn-stress" type="button" onclick="openStressModal()">压力测试</button>
+            <button class="btn-rules" type="button" onclick="openCorrelateModal()">预览关联</button>
+            <button class="btn-rules" type="button" onclick="openRulesModal()">编辑规则</button>
+            <button class="btn-rules" type="button" onclick="openWebSocketFramesModal()">WebSocket 帧</button>
+            <button type="button" class="btn-refresh" id="refreshBtn" onclick="manualRefresh()">刷新</button>
+            <button class="btn-pause" id="pauseBtn" onclick="togglePause()">暂停刷新</button>
+            <button class="btn-capture" id="captureBtn" onclick="toggleCapture()">暂停捕获</button>
+            <button class="btn-delete" onclick="deleteSelected()">删除勾选</button>
+            <button class="btn-clear" onclick="clearRecords()">清空</button>
+            <button class="btn-export" onclick="exportJMX()">导出 JMeter</button>
+            <button class="btn-export-csv" onclick="exportPostman()">导出 Postman</button>
+            <button class="btn-export-csv" onclick="exportK6()">导出 k6</button>
+            <button class="btn-export-csv" onclick="exportCSV()">导出 CSV</button>
+            <a class="doc-link" href="./readme" target="_blank" rel="noopener noreferrer" title="打开帮助文档">帮助文档</a>
+        </div>
+    </div>
+
+    <div id="errorBanner" class="error-banner" hidden>
+        <span id="errorBannerText"></span>
+        <button type="button" onclick="dismissError()">关闭</button>
+    </div>
+
+    <div class="toolbar">
+        <input type="search" id="keyword" placeholder="按 URL 筛选" oninput="onFilterInput()">
+        <label class="response-time-filter" title="仅显示响应时间严格大于指定秒数的请求；没有耗时数据的请求不会显示">
+            响应时间 &gt; <input type="number" id="responseTimeMin" min="0" step="0.01" inputmode="decimal" placeholder="秒" aria-label="响应时间大于多少秒" oninput="onFilterInput()"> 秒
+        </label>
+        <div class="filter-time-range" title="按捕获时间区间筛选">
+            <span>捕获时间</span>
+            <input type="datetime-local" id="filterTimeFrom" step="1" onchange="onFilterInput()" oninput="onFilterInput()">
+            <span>至</span>
+            <input type="datetime-local" id="filterTimeTo" step="1" onchange="onFilterInput()" oninput="onFilterInput()">
+            <button type="button" class="btn-filter-clear" onclick="clearTimeFilter()">清除</button>
+        </div>
+        <select id="methodFilter" onchange="renderTable()">
+            <option value="">全部方法</option>
+        </select>
+        <select id="statusFilter" onchange="renderTable()">
+            <option value="">全部状态</option>
+            <option value="2xx">2xx</option>
+            <option value="3xx">3xx</option>
+            <option value="4xx">4xx</option>
+            <option value="5xx">5xx</option>
+        </select>
+        <label><input type="checkbox" id="hideOptions" checked onchange="renderTable()"> 隐藏 OPTIONS</label>
+        <label>线程 <input type="number" id="threads" min="1" max="1000" value="1"></label>
+        <label>循环 <input type="number" id="loops" min="1" max="10000" value="1"></label>
+        <label>Ramp-up <input type="number" id="rampTime" min="0" max="3600" value="1"></label>
+        <label><input type="checkbox" id="correlateToken" checked title="从 JSON 响应提取 token / 业务 ID，替换后续请求中的同值"> 参数关联</label>
+        <input type="search" id="includeHost" placeholder="只捕获主机，如 api.example.com" onchange="saveSettings()" onkeydown="if(event.key==='Enter')saveSettings()">
+        <input type="search" id="includePath" placeholder="只捕获路径关键字" onchange="saveSettings()" onkeydown="if(event.key==='Enter')saveSettings()">
+        <label><input type="checkbox" id="skipDuplicates" checked onchange="saveSettings()"> 去重连续相同请求</label>
+    </div>
+
+    <div class="table-container">
+        <table class="record-table">
+            <colgroup>
+                <col class="c-check">
+                <col class="c-proto">
+                <col class="c-method">
+                <col class="c-url">
+                <col class="c-name">
+                <col class="c-type">
+                <col class="c-init">
+                <col class="c-size">
+                <col class="c-timing">
+                <col class="c-status">
+                <col class="c-time">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></th>
+                    <th title="请求协议">Proto</th>
+                    <th>Method</th>
+                    <th>URL</th>
+                    <th>name</th>
+                    <th title="响应 Content-Type">Type</th>
+                    <th>Initiator</th>
+                    <th class="size-col">Size</th>
+                    <th class="timing-col" title="请求开始至响应结束的总耗时；不足 1 秒显示 ms，满 1 秒显示 s；超过 3 秒标红">response Time</th>
+                    <th>Status</th>
+                    <th title="按时间倒序，最新在上">captured_time ↓</th>
+                </tr>
+            </thead>
+            <tbody id="recordBody">
+                <tr><td colspan="11" class="empty-state">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="detail-resizer" id="detailResizer" role="separator" aria-label="调整请求详情卡片高度" aria-orientation="horizontal" tabindex="0" title="上下拖动调整请求详情卡片高度"></div>
+
+    <div class="detail" id="detailPanel">
+        <h3>请求详情</h3>
+        <p class="hint">点击表格中的一行查看请求/响应报文。</p>
+    </div>
+
+    <div id="websocketFramesModal" class="rules-modal" hidden onclick="closeWebSocketFramesModal()">
+        <div class="ws-frame-dialog" onclick="event.stopPropagation()">
+            <div class="ws-frame-head">
+                <h3>WebSocket 帧</h3>
+                <span class="hint" id="wsFrameStatus">尚未加载</span>
+                <button type="button" class="rules-modal-close" onclick="closeWebSocketFramesModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="ws-frame-toolbar">
+                <input type="search" id="wsFrameSearch" placeholder="搜索连接 ID / payload" oninput="renderWebSocketFrames()" aria-label="搜索 WebSocket 帧">
+                <select id="wsFrameDirection" onchange="renderWebSocketFrames()" aria-label="WebSocket 帧方向">
+                    <option value="">全部方向</option>
+                    <option value="outgoing">客户端 → 服务端</option>
+                    <option value="incoming">服务端 → 客户端</option>
+                </select>
+                <button type="button" onclick="loadWebSocketFrames()">刷新</button>
+                <button type="button" class="ws-clear-btn" onclick="clearWebSocketFrames()">清空帧</button>
+            </div>
+            <div class="ws-frame-layout">
+                <div class="ws-frame-table-wrap">
+                    <table class="ws-frame-table">
+                        <thead><tr><th class="ws-time">时间</th><th class="ws-direction">方向</th><th class="ws-protocol">协议</th><th class="ws-connection">连接</th><th>Payload 摘要</th></tr></thead>
+                        <tbody id="wsFrameBody"><tr><td colspan="5" class="empty-state">加载中...</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="ws-frame-detail" id="wsFrameDetail"><h4>帧详情</h4><p class="hint">选择一条帧查看完整 Payload。</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="correlateModal" class="rules-modal" hidden onclick="closeCorrelateModal()">
+        <div class="rules-modal-dialog correlate-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>参数关联预览</span>
+                <button type="button" class="rules-modal-close" onclick="closeCorrelateModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint">导出 JMX 时按下列勾选生成提取器。可改变量名和提取表达式。签名 / nonce / timestamp 已自动跳过。</p>
+                <div class="correlate-toolbar">
+                    <input type="search" id="correlateSearch" placeholder="搜索变量 / 来源 URL" oninput="onCorrelateFilterChange()">
+                    <select id="correlateKindFilter" onchange="onCorrelateFilterChange()">
+                        <option value="all">全部类型</option>
+                        <option value="token">Token</option>
+                        <option value="refreshToken">Refresh</option>
+                        <option value="csrf">CSRF</option>
+                        <option value="cursor">游标</option>
+                        <option value="id">业务 ID</option>
+                        <option value="header">响应头</option>
+                        <option value="location">Location</option>
+                        <option value="manual">后置提取</option>
+                    </select>
+                    <select id="correlateSort" onchange="onCorrelateFilterChange()">
+                        <option value="priority">按优先级</option>
+                        <option value="uses">按引用次数</option>
+                        <option value="source">按来源序号</option>
+                        <option value="name">按变量名</option>
+                    </select>
+                    <label class="hint"><input type="checkbox" id="correlateHideDisabled" onchange="onCorrelateFilterChange()"> 隐藏未启用</label>
+                    <button type="button" class="corr-bulk-btn" onclick="bulkCorrelateToggle('all')">全选</button>
+                    <button type="button" class="corr-bulk-btn" onclick="bulkCorrelateToggle('none')">全不选</button>
+                    <button type="button" class="corr-bulk-btn" onclick="bulkCorrelateToggle('token')">仅 Token</button>
+                    <span class="correlate-summary" id="correlateSummary"></span>
+                </div>
+                <div class="correlate-scroll">
+                    <table class="correlate-table">
+                        <thead>
+                            <tr>
+                                <th width="44">启用</th>
+                                <th width="140">变量</th>
+                                <th width="80">类型</th>
+                                <th>来源 / 用于</th>
+                                <th>提取表达式</th>
+                            </tr>
+                        </thead>
+                        <tbody id="correlateBody">
+                            <tr><td colspan="5" class="empty-state">尚未分析</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="hint" id="correlateJwtNote" hidden></p>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="correlateStatus"></span>
+                <button type="button" class="btn-reset-rules" onclick="downloadCorrelateReport()">下载关联清单</button>
+                <button type="button" class="btn-save-rules" onclick="applyCorrelateEdits()">用于导出</button>
+                <button type="button" class="btn-close-rules" onclick="closeCorrelateModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="extractModal" class="rules-modal" hidden onclick="closeExtractModal()">
+        <div class="rules-modal-dialog extract-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>提取变量</span>
+                <button type="button" class="rules-modal-close" onclick="closeExtractModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="extract-form">
+                    <div>
+                        <label for="extractVarName">变量名称<span class="req-mark" title="必填">*</span></label>
+                        <input type="text" id="extractVarName" placeholder="如 dataSourceUrl" required
+                            oninput="clearExtractFieldError('extractVarName'); this.dataset.auto='0'">
+                    </div>
+                    <div>
+                        <label for="extractSource">提取源</label>
+                        <select id="extractSource" onchange="onExtractSourceChange()">
+                            <option value="json">Response JSON</option>
+                            <option value="header">Response Header</option>
+                            <option value="text">Response Text</option>
+                        </select>
+                    </div>
+                    <div id="extractMethodWrap">
+                        <label>提取</label>
+                        <div class="extract-radios">
+                            <label><input type="radio" name="extractMethod" value="whole" onchange="onExtractMethodChange()"> 整个 JSON</label>
+                            <label><input type="radio" name="extractMethod" value="jsonpath" checked onchange="onExtractMethodChange()"> JSONPath</label>
+                        </div>
+                    </div>
+                    <div id="extractHeaderWrap" hidden>
+                        <label for="extractHeaderName">响应头名称<span class="req-mark" title="必填">*</span></label>
+                        <input type="text" id="extractHeaderName" placeholder="如 X-Request-Id"
+                            oninput="clearExtractFieldError('extractHeaderName'); scheduleExtractPreview()">
+                    </div>
+                </div>
+                <div id="jpTool" class="jp-tool">
+                    <div class="jp-pane">
+                        <div class="jp-pane-head" id="jpLeftTitle">JSON</div>
+                        <div id="jpTree" class="jp-tree"></div>
+                    </div>
+                    <div class="jp-pane">
+                        <div class="jp-pane-head" id="jpRightTitle">JSONPath</div>
+                        <div class="jp-right">
+                            <p class="hint" id="jpHint">可以在左侧悬停于一个字段上点击「提取 JSONPath」来快速填写</p>
+                            <div id="jpJsonFields">
+                                <div class="extract-field">
+                                    <label for="extractJsonPath">表达式<span class="req-mark" title="必填">*</span></label>
+                                    <input type="text" id="extractJsonPath" placeholder="$.data.rows[0].id" required
+                                        oninput="clearExtractFieldError('extractJsonPath'); onExtractJsonPathInput()">
+                                </div>
+                                <label class="jp-switch"><input type="checkbox" id="extractUnpack" onchange="scheduleExtractPreview()"> 数组解包</label>
+                            </div>
+                            <div>
+                                <label>提取结果</label>
+                                <pre id="jpResult" class="jp-result"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="hint">保存后，导出 JMX 时会在该采样器下生成提取器，并替换后续请求中出现的同值。</p>
+                <table class="extract-list">
+                    <thead>
+                        <tr>
+                            <th>变量</th>
+                            <th>来源</th>
+                            <th>表达式</th>
+                            <th width="120"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="extractListBody">
+                        <tr><td colspan="4" class="empty-state">尚未添加</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="extractStatus"></span>
+                <button type="button" class="btn-save-rules" onclick="saveExtractItem()">保存提取</button>
+                <button type="button" class="btn-close-rules" onclick="closeExtractModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assertModal" class="rules-modal" hidden onclick="closeAssertModal()">
+        <div class="rules-modal-dialog extract-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>断言</span>
+                <button type="button" class="rules-modal-close" onclick="closeAssertModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="extract-form">
+                    <div>
+                        <label for="assertName">断言名称</label>
+                        <input type="text" id="assertName" placeholder="可不填">
+                    </div>
+                    <div>
+                        <label for="assertSource">断言对象</label>
+                        <select id="assertSource" onchange="onAssertSourceChange()">
+                            <option value="json">Response JSON</option>
+                            <option value="header">Response Header</option>
+                            <option value="text">Response Text</option>
+                            <option value="status">HTTP Code</option>
+                        </select>
+                    </div>
+                    <div id="assertHeaderWrap" hidden>
+                        <label for="assertHeaderName">响应头名称</label>
+                        <input type="text" id="assertHeaderName" placeholder="如 X-Request-Id" oninput="scheduleAssertPreview()">
+                    </div>
+                </div>
+                <div id="assertJpTool" class="jp-tool">
+                    <div class="jp-pane">
+                        <div class="jp-pane-head" id="assertLeftTitle">JSON</div>
+                        <div id="assertJpTree" class="jp-tree"></div>
+                    </div>
+                    <div class="jp-pane">
+                        <div class="jp-pane-head" id="assertRightTitle">断言</div>
+                        <div class="jp-right">
+                            <p class="hint" id="assertHint">可以在左侧悬停字段并点击「提取 JSONPath」</p>
+                            <div id="assertJsonFields">
+                                <div class="extract-field">
+                                    <label for="assertJsonPath">JSONPath</label>
+                                    <input type="text" id="assertJsonPath" placeholder="JSONPath 表达式, 如: $.store.book[0].title" oninput="scheduleAssertPreview()">
+                                </div>
+                                <label class="jp-switch"><input type="checkbox" id="assertUnpack" onchange="scheduleAssertPreview()"> 数组解包</label>
+                            </div>
+                            <div class="extract-field">
+                                <label>断言</label>
+                                <div class="assert-op">
+                                    <select id="assertOperator" onchange="onAssertOperatorChange()">
+                                        <option value="equals">等于</option>
+                                        <option value="not_equals">不等于</option>
+                                        <option value="contains">包含</option>
+                                        <option value="not_contains">不包含</option>
+                                        <option value="exists">存在</option>
+                                        <option value="not_exists">不存在</option>
+                                        <option value="regex">正则匹配</option>
+                                    </select>
+                                    <input type="text" id="assertExpected" placeholder="期望值" oninput="scheduleAssertPreview()">
+                                </div>
+                            </div>
+                            <div>
+                                <label>提取 / 断言结果</label>
+                                <pre id="assertResult" class="jp-result"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="hint">保存后，导出 JMX 时会在该采样器下生成 JSON Path Assertion 或响应断言。</p>
+                <table class="extract-list">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>对象</th>
+                            <th>条件</th>
+                            <th width="120"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="assertListBody">
+                        <tr><td colspan="4" class="empty-state">尚未添加</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="assertStatus"></span>
+                <button type="button" class="btn-save-rules" onclick="saveAssertItem()">保存断言</button>
+                <button type="button" class="btn-close-rules" onclick="closeAssertModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dbOpModal" class="rules-modal" hidden onclick="closeDbOpModal()">
+        <div class="rules-modal-dialog db-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>数据库操作</span>
+                <button type="button" class="rules-modal-close" onclick="closeDbOpModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="extract-form db-form">
+                    <div>
+                        <label class="req" for="dbOpName">操作名称</label>
+                        <input type="text" id="dbOpName" placeholder="如 查询用户">
+                    </div>
+                    <div>
+                        <label class="req" for="dbConnSelect">数据库连接</label>
+                        <div class="db-conn-row">
+                            <select id="dbConnSelect" onchange="onDbOpConnChange()">
+                                <option value="">请选择</option>
+                            </select>
+                            <button type="button" class="btn-icon" title="管理连接" onclick="openDbConnModal()">管理</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="req" for="dbOpDatabase">数据库名称</label>
+                        <select id="dbOpDatabase">
+                            <option value="">请选择</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="extract-field">
+                    <div class="db-sql-head">
+                        <label class="req" for="dbSql">SQL 命令</label>
+                        <div
+                            class="db-sql-head-hint"
+                            id="dbSqlResultHint"
+                            title="点击查看全部"
+                            role="button"
+                            tabindex="0"
+                            onclick="toggleDbSqlHint(event)"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDbSqlHint(event);}"
+                        >返回结果是数组格式。JSONPath 示例：<code>$[0].id</code>。点击「执行」可在当前连接上预览查询结果；导出 JMX 后仍由 JMeter JDBC 后置处理器运行。</div>
+                        <div class="db-dyn-wrap">
+                            <button type="button" class="btn-dyn btn-run-sql" onclick="executeDbSql()">执行</button>
+                            <button type="button" class="btn-dyn" onclick="toggleDbDynMenu(event)">动态值</button>
+                            <div class="post-op-menu db-dyn-menu" id="dbDynMenu" hidden></div>
+                        </div>
+                    </div>
+                    <textarea id="dbSql" placeholder="可使用变量，如：SELECT * FROM user WHERE name='{{username}}'"></textarea>
+                </div>
+                <div id="dbJpTool" class="jp-tool">
+                    <div class="jp-pane">
+                        <div class="jp-pane-head">SQL 结果 JSON</div>
+                        <div id="dbJpTree" class="jp-tree"></div>
+                    </div>
+                    <div class="jp-pane">
+                        <div class="jp-pane-head">JSONPath 提取</div>
+                        <div class="jp-right">
+                            <p class="hint" id="dbJpHint">先点击「执行」获取结果；在左侧悬停字段并点击「提取 JSONPath」填写下方变量行，或直接编辑 JSONPath 表达式。</p>
+                            <div>
+                                <label>提取结果</label>
+                                <pre id="dbExtractPreview" class="jp-result"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="hint" style="margin-top:12px;">提取结果到变量</p>
+                <table class="extract-list">
+                    <thead>
+                        <tr>
+                            <th>变量名</th>
+                            <th width="110">变量类型</th>
+                            <th>JSONPath 表达式</th>
+                            <th width="70"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbExtractBody">
+                        <tr><td colspan="4" class="empty-state">尚未添加</td></tr>
+                    </tbody>
+                </table>
+                <button type="button" class="db-add-var" onclick="addDbExtractRow()">+ 添加变量</button>
+                <table class="extract-list">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>连接</th>
+                            <th>SQL</th>
+                            <th width="120"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbOpListBody">
+                        <tr><td colspan="4" class="empty-state">尚未添加</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="dbOpStatus"></span>
+                <button type="button" class="btn-save-rules" onclick="saveDbOpItem()">保存操作</button>
+                <button type="button" class="btn-close-rules" onclick="closeDbOpModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dbConnFormModal" class="rules-modal" hidden onclick="closeDbConnForm()">
+        <div class="rules-modal-dialog conn-form-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span id="dbConnFormTitle">新建数据库连接</span>
+                <button type="button" class="rules-modal-close" onclick="closeDbConnForm()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="extract-form">
+                    <div class="span-2">
+                        <label class="req" for="dbConnName">名称</label>
+                        <input type="text" id="dbConnName" placeholder="名称">
+                    </div>
+                    <div class="span-2">
+                        <label for="dbConnDesc">说明</label>
+                        <textarea id="dbConnDesc" placeholder="说明" style="min-height:64px"></textarea>
+                    </div>
+                    <div class="span-2">
+                        <label class="req" for="dbConnType">数据库类型</label>
+                        <select id="dbConnType" onchange="onDbConnTypeChange()">
+                            <option value="mysql">MySQL</option>
+                            <option value="postgres">PostgreSQL</option>
+                            <option value="sqlserver">SQL Server</option>
+                            <option value="mongodb">MongoDB</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="conn-section">常规</div>
+                <div class="extract-form">
+                    <div>
+                        <label class="req" for="dbConnHost">数据库地址</label>
+                        <input type="text" id="dbConnHost" placeholder="IP / Host">
+                    </div>
+                    <div>
+                        <label for="dbConnPort">端口</label>
+                        <input type="number" id="dbConnPort" placeholder="3306">
+                    </div>
+                    <div>
+                        <label for="dbConnUser">用户名</label>
+                        <input type="text" id="dbConnUser" placeholder="用户名">
+                    </div>
+                    <div>
+                        <label for="dbConnPassword">密码</label>
+                        <input type="password" id="dbConnPassword" placeholder="留空则保留原密码">
+                    </div>
+                    <div class="span-2">
+                        <label for="dbConnDatabase">数据库名</label>
+                        <input type="text" id="dbConnDatabase" placeholder="数据库名称">
+                    </div>
+                </div>
+                <button type="button" class="btn-test-conn" onclick="testDbConnection()">测试连接</button>
+                <div class="db-note">连接会写入本机 SQLite 表 wje_db_connections（并备份 data/dbConnections.json）。类型为 MySQL 且填写了数据库名时，同时写入该库的同名表。导出 JMX 时密码会写入脚本。测试连接：MySQL 和 MongoDB 会校验账号密码；PostgreSQL、SQL Server 仅检查主机端口可达。</div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="dbConnFormStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="closeDbConnForm()">取消</button>
+                <button type="button" class="btn-save-rules" onclick="saveDbConnection()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="generalSettingsModal" class="rules-modal" hidden>
+        <div class="rules-modal-dialog share-shell" onclick="event.stopPropagation()">
+            <aside class="share-side">
+                <div class="share-side-head">
+                    <span>通用设置</span>
+                    <button type="button" class="rules-modal-close" onclick="closeGeneralSettingsModal()" aria-label="关闭">×</button>
+                </div>
+                <div class="share-side-section">设置项</div>
+                <button type="button" class="gs-nav-item active" data-gs-tab="project" onclick="selectGeneralSettingsTab('project')">项目设置</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="stress" onclick="selectGeneralSettingsTab('stress')">压测设置</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="env" onclick="selectGeneralSettingsTab('env')">环境设置</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="branch" onclick="selectGeneralSettingsTab('branch')">分支管理</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="notify" onclick="selectGeneralSettingsTab('notify')">通知设置</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="datasource" onclick="selectGeneralSettingsTab('datasource')">数据源设置</button>
+                <button type="button" class="gs-nav-item" data-gs-tab="dbconn" onclick="selectGeneralSettingsTab('dbconn')">数据库连接</button>
+            </aside>
+            <section class="share-main">
+                <div class="share-main-head">
+                    <h3 id="gsMainTitle">项目设置</h3>
+                    <span class="hint" id="gsStatus"></span>
+                </div>
+                <div class="share-table-wrap">
+                    <div class="gs-panel active" id="gsPanelProject" data-gs-panel="project">
+                        <div class="gs-form-card">
+                            <h4>项目基本信息</h4>
+                            <p class="desc">类似 Apifox 项目设置，用于标识当前导出工程。</p>
+                            <div class="gs-field">
+                                <label for="gsProjectName">项目名称</label>
+                                <input type="text" id="gsProjectName" placeholder="例如：订单中心接口回归">
+                            </div>
+                            <div class="gs-field">
+                                <label for="gsProjectDesc">项目描述</label>
+                                <textarea id="gsProjectDesc" placeholder="可选：说明项目用途、负责人等"></textarea>
+                            </div>
+                            <div class="gs-actions">
+                                <button type="button" class="btn-save-rules" onclick="saveGeneralSettingsProject()">保存</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelStress" data-gs-panel="stress">
+                        <div class="gs-form-card">
+                            <h4>压测默认参数</h4>
+                            <p class="desc">设置顶部工具栏线程 / 循环 / Ramp-up 的默认值，可一键应用到工具栏。</p>
+                            <div class="gs-inline">
+                                <div class="gs-field">
+                                    <label for="gsDefaultThreads">默认线程数</label>
+                                    <input type="number" id="gsDefaultThreads" min="1" max="1000" value="1">
+                                </div>
+                                <div class="gs-field">
+                                    <label for="gsDefaultLoops">默认循环次数</label>
+                                    <input type="number" id="gsDefaultLoops" min="1" max="10000" value="1">
+                                </div>
+                                <div class="gs-field">
+                                    <label for="gsDefaultRamp">默认 Ramp-up（秒）</label>
+                                    <input type="number" id="gsDefaultRamp" min="0" max="3600" value="1">
+                                </div>
+                            </div>
+                            <div class="gs-actions">
+                                <button type="button" class="btn-save-rules" onclick="saveGeneralSettingsStress()">保存</button>
+                                <button type="button" class="btn-ghost" onclick="applyStressDefaultsToToolbar()">应用到工具栏</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelEnv" data-gs-panel="env">
+                        <div class="gs-form-card">
+                            <h4>环境列表</h4>
+                            <p class="desc">维护多套环境（如开发 / 测试 / 预发），导出或联调时可选用当前环境。</p>
+                            <div class="gs-list" id="gsEnvList"></div>
+                            <div class="gs-inline" style="grid-template-columns: 1fr 1.4fr auto;">
+                                <div class="gs-field" style="margin:0;">
+                                    <label for="gsEnvName">环境名</label>
+                                    <input type="text" id="gsEnvName" placeholder="测试环境">
+                                </div>
+                                <div class="gs-field" style="margin:0;">
+                                    <label for="gsEnvBaseUrl">Base URL</label>
+                                    <input type="url" id="gsEnvBaseUrl" placeholder="https://api.example.com">
+                                </div>
+                                <div class="gs-field" style="margin:0; align-self:end;">
+                                    <button type="button" class="btn-save-rules" onclick="addGeneralSettingsEnv()">添加</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelBranch" data-gs-panel="branch">
+                        <div class="gs-form-card">
+                            <h4>分支管理</h4>
+                            <p class="desc">简单记录本地分支名称，便于区分脚本版本（不做 Git 操作）。</p>
+                            <div class="gs-list" id="gsBranchList"></div>
+                            <div class="gs-inline" style="grid-template-columns: 1fr 1.4fr auto;">
+                                <div class="gs-field" style="margin:0;">
+                                    <label for="gsBranchName">分支名</label>
+                                    <input type="text" id="gsBranchName" placeholder="feature/order-api">
+                                </div>
+                                <div class="gs-field" style="margin:0;">
+                                    <label for="gsBranchNote">备注</label>
+                                    <input type="text" id="gsBranchNote" placeholder="可选说明">
+                                </div>
+                                <div class="gs-field" style="margin:0; align-self:end;">
+                                    <button type="button" class="btn-save-rules" onclick="addGeneralSettingsBranch()">添加</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelNotify" data-gs-panel="notify">
+                        <div class="gs-form-card">
+                            <h4>通知渠道</h4>
+                            <p class="desc">阈值告警、压测结果等通知均使用此处配置（服务端保存，全页面复用）。</p>
+                            <label class="gs-check">
+                                <input type="checkbox" id="gsNotifyWebhookEnabled"> 启用 Webhook
+                            </label>
+                            <div class="gs-field">
+                                <label for="gsNotifyWebhookUrl">Webhook URL</label>
+                                <input type="url" id="gsNotifyWebhookUrl" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+                            </div>
+                            <div class="gs-field">
+                                <label for="gsNotifyWebhookFormat">Webhook 格式</label>
+                                <select id="gsNotifyWebhookFormat">
+                                    <option value="auto">自动（飞书 URL 识别）</option>
+                                    <option value="feishu">飞书 / Lark 文本消息</option>
+                                    <option value="json">通用 JSON payload</option>
+                                </select>
+                            </div>
+                            <label class="gs-check">
+                                <input type="checkbox" id="gsNotifyEmailEnabled"> 启用邮件 Webhook
+                            </label>
+                            <div class="gs-field">
+                                <label for="gsNotifyEmailHookUrl">邮件 Webhook URL（可选）</label>
+                                <input type="url" id="gsNotifyEmailHookUrl" placeholder="https://email-hook.example.com/...">
+                            </div>
+                            <div class="gs-field">
+                                <label for="gsNotifyEmail">通知邮箱（写入 payload）</label>
+                                <input type="email" id="gsNotifyEmail" placeholder="qa@example.com">
+                            </div>
+                            <div class="gs-actions">
+                                <button type="button" class="btn-close-rules" onclick="testGeneralNotifyWebhook()">测试 Webhook</button>
+                                <button type="button" class="btn-save-rules" onclick="saveGeneralSettingsNotify()">保存</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelDatasource" data-gs-panel="datasource">
+                        <div class="gs-form-card">
+                            <h4>数据源设置</h4>
+                            <p class="desc">抓包记录默认写入本机 SQLite，也可切换到已配置的 MySQL / PostgreSQL 连接。</p>
+                            <div class="gs-field">
+                                <label>当前存储引擎</label>
+                                <div id="gsDatasourceSummary" class="hint">加载中…</div>
+                            </div>
+                            <div class="persist-choice" style="margin-bottom:12px;">
+                                <label>
+                                    <input type="radio" name="gsPersistEngine" value="sqlite" id="gsPersistSqlite" checked onchange="onGsPersistEngineChange()">
+                                    <span>SQLite（默认）</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="gsPersistEngine" value="mysql" id="gsPersistMysql" onchange="onGsPersistEngineChange()">
+                                    <span>MySQL</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="gsPersistEngine" value="postgres" id="gsPersistPostgres" onchange="onGsPersistEngineChange()">
+                                    <span>PostgreSQL</span>
+                                </label>
+                            </div>
+                            <div class="persist-mysql-wrap" id="gsPersistRemoteWrap" style="display:none; gap:8px; flex-wrap:wrap;">
+                                <select id="gsPersistRemoteConn" style="min-width:220px;"></select>
+                                <button type="button" class="btn-ghost" onclick="selectGeneralSettingsTab('dbconn')">管理连接</button>
+                            </div>
+                            <div class="gs-actions">
+                                <span class="hint" id="gsDatasourceStatus"></span>
+                                <button type="button" class="btn-save-rules" onclick="saveGeneralSettingsDatasource()">保存数据源</button>
+                                <button type="button" class="btn-ghost" onclick="openStorageModalFromGeneralSettings()">打开完整存储设置</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gs-panel" id="gsPanelDbconn" data-gs-panel="dbconn">
+                        <div class="gs-form-card" style="max-width:none;">
+                            <h4>数据库连接</h4>
+                            <p class="desc">管理 MySQL / PostgreSQL / SQL Server 连接，供抓包存储、后置操作与 JMX 导出使用。</p>
+                            <div class="conn-list-bar" style="margin-bottom:12px;">
+                                <input type="search" id="dbConnSearch" placeholder="搜索名称、类型或说明" oninput="renderDbConnList()">
+                                <button type="button" class="btn-conn-new" onclick="openDbConnForm()">+ 新建</button>
+                            </div>
+                            <table class="extract-list">
+                                <thead>
+                                    <tr>
+                                        <th>名称</th>
+                                        <th width="120">数据库类型</th>
+                                        <th>说明</th>
+                                        <th width="90">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dbConnListBody">
+                                    <tr><td colspan="4" class="empty-state">尚未添加</td></tr>
+                                </tbody>
+                            </table>
+                            <p class="hint" id="dbConnStatus" style="margin-top:12px;"></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="shareDocsModal" class="rules-modal" hidden>
+        <div class="rules-modal-dialog share-shell" onclick="event.stopPropagation()">
+            <aside class="share-side">
+                <div class="share-side-head">
+                    <span>分享文档</span>
+                    <button type="button" class="rules-modal-close" onclick="closeShareDocsModal()" aria-label="关闭">×</button>
+                </div>
+                <div class="share-side-section">快捷分享</div>
+                <div class="share-nav-item active" id="shareNavOnline" onclick="selectShareNav('online')">
+                    <div class="t">在线文档列表</div>
+                    <div class="s">随时分享在线文档</div>
+                </div>
+                <div class="share-side-section">发布记录站</div>
+                <div id="shareStationList"></div>
+                <div class="share-side-foot">
+                    <button type="button" onclick="openShareStationForm()">+ 新建文档站</button>
+                </div>
+            </aside>
+            <section class="share-main">
+                <div class="share-main-head">
+                    <h3 id="shareMainTitle">在线文档列表</h3>
+                    <div class="share-main-head-right">
+                        <button type="button" class="btn-share-ghost" onclick="openMemoryHandoverModal()" title="MemoryBridge handover 五行卡">写交接卡</button>
+                        <span class="share-mb-badge unknown" id="shareMemoryBridgeBadge" title="MemoryBridge 状态">MB …</span>
+                        <span class="hint" id="shareStatus"></span>
+                    </div>
+                </div>
+                <div class="share-toolbar">
+                    <span class="share-count" id="shareCount">0 个分享</span>
+                    <input type="search" class="share-search" id="shareSearch" placeholder="搜索标题 / slug / 格式" oninput="onShareSearchInput()">
+                    <button type="button" class="btn-share-ghost" onclick="triggerShareImport()">导入文档</button>
+                    <button type="button" class="btn-share-ghost" onclick="exportShareSyncPack()" title="导出 .wjesync 同步包到其他节点">导出同步包</button>
+                    <label class="btn-share-ghost" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" title="导出时把文档指针写入 MemoryBridge">
+                        <input type="checkbox" id="shareSyncMemoryAnchors"> 导出时写记忆锚点
+                    </label>
+                    <label class="btn-share-ghost" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" title="导入后把文档指针写入 MemoryBridge">
+                        <input type="checkbox" id="shareSyncImportMemoryAnchors" checked> 导入时写记忆锚点
+                    </label>
+                    <button type="button" class="btn-share-ghost" onclick="triggerShareSyncImport()" title="从其他节点导入 .wjesync">导入同步包</button>
+                    <button type="button" class="btn-share-primary" onclick="openShareDocForm()">+ 新建分享</button>
+                    <input type="file" id="shareImportFile" hidden accept=".md,.markdown,.html,.htm,.txt,.doc,.docx" onchange="onShareImportFile(event)">
+                    <input type="file" id="shareSyncImportFile" hidden accept=".wjesync,.gz,application/gzip" onchange="onShareSyncImportFile(event)">
+                </div>
+                <div class="share-table-wrap">
+                    <table class="share-table">
+                        <thead>
+                            <tr>
+                                <th>分享对象</th>
+                                <th>类型</th>
+                                <th>来源</th>
+                                <th>有效期</th>
+                                <th>创建日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shareDocBody">
+                            <tr><td colspan="6" class="share-empty">暂无分享，点击「新建分享」或「导入文档」</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="memoryHandoverModal" class="rules-modal" hidden onclick="closeMemoryHandoverModal()">
+        <div class="rules-modal-dialog" style="width:min(720px,100%);" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>MemoryBridge 交接卡</span>
+                <button type="button" class="rules-modal-close" onclick="closeMemoryHandoverModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint">五行格式：<code>goal / done / failed / next / refs</code>。新卡会取代旧 handover 工作台。</p>
+                <label class="hint">当前工作台</label>
+                <pre id="memoryHandoffPreview" class="hint" style="max-height:120px;overflow:auto;background:#f6f8fa;padding:8px;border-radius:4px;white-space:pre-wrap;">加载中…</pre>
+                <div class="threshold-grid">
+                    <div><label>goal</label><textarea id="mbGoal" rows="2" placeholder="当前目标"></textarea></div>
+                    <div><label>done</label><textarea id="mbDone" rows="2" placeholder="已完成"></textarea></div>
+                    <div><label>failed</label><textarea id="mbFailed" rows="2" placeholder="失败/踩坑（硬句式）"></textarea></div>
+                    <div><label>next</label><textarea id="mbNext" rows="2" placeholder="下一步"></textarea></div>
+                    <div style="grid-column:1/-1;"><label>refs</label><textarea id="mbRefs" rows="2" placeholder="路径、commit、文档链接"></textarea></div>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="memoryHandoverStatus"></span>
+                <button type="button" class="btn-ghost" onclick="refreshMemoryHandoffWorkbench()">刷新工作台</button>
+                <button type="button" class="btn-save-rules" onclick="saveMemoryHandoverCard()">写入交接卡</button>
+                <button type="button" class="btn-close-rules" onclick="closeMemoryHandoverModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shareDocViewer" class="share-doc-viewer" hidden>
+        <div class="share-doc-viewer-bar">
+            <span class="t" id="shareDocViewerTitle">文档预览</span>
+            <button type="button" onclick="toggleShareDocViewerFullscreen()">全屏</button>
+            <button type="button" onclick="closeShareDocViewer()">关闭</button>
+        </div>
+        <iframe id="shareDocViewerFrame" title="分享文档预览"></iframe>
+    </div>
+
+    <div id="shareDocFormModal" class="rules-modal" hidden>
+        <div class="rules-modal-dialog share-editor-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span id="shareDocFormTitle">新建分享</span>
+                <span class="hint" id="shareDocFormStatus" style="margin-left:auto;margin-right:8px;"></span>
+                <button type="button" class="btn-ghost" id="shareDocVersionsBtn" hidden onclick="openShareDocVersions()">版本历史</button>
+                <button type="button" class="btn-ghost" id="shareDocWikiIngestBtn" hidden onclick="ingestShareDocToWiki()">入库 Wiki</button>
+                <button type="button" class="btn-close-rules" onclick="closeShareDocForm()">取消</button>
+                <button type="button" class="btn-save-rules" onclick="saveShareDocForm()">保存</button>
+                <button type="button" class="rules-modal-close" onclick="closeShareDocForm()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <input type="hidden" id="shareDocEditId" value="">
+                <div class="threshold-grid share-editor-meta">
+                    <div>
+                        <label>标题</label>
+                        <input type="text" id="shareDocTitle" placeholder="文档标题">
+                    </div>
+                    <div>
+                        <label>格式</label>
+                        <select id="shareDocFormat" onchange="onShareDocFormatChange()">
+                            <option value="html">富文本 HTML</option>
+                            <option value="md">Markdown (.md)</option>
+                            <option value="doc">Word HTML (.doc)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>文档站</label>
+                        <select id="shareDocStation"></select>
+                    </div>
+                    <div>
+                        <label>有效期</label>
+                        <select id="shareDocExpire">
+                            <option value="">永久有效</option>
+                            <option value="1d">1 天</option>
+                            <option value="7d">7 天</option>
+                            <option value="30d">30 天</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="share-editor-grid">
+                    <div class="share-editor-pane">
+                        <label>内容</label>
+                        <div class="share-editor-surface" id="shareEditorSurface">
+                            <div class="share-editor-toolbar" id="shareRichToolbar">
+                                <button type="button" title="加粗" onclick="shareRichCmd('bold')"><b>B</b></button>
+                                <button type="button" title="斜体" onclick="shareRichCmd('italic')"><i>I</i></button>
+                                <button type="button" title="下划线" onclick="shareRichCmd('underline')"><u>U</u></button>
+                                <span class="sep"></span>
+                                <button type="button" onclick="shareRichCmd('formatBlock','H2')">H2</button>
+                                <button type="button" onclick="shareRichCmd('formatBlock','H3')">H3</button>
+                                <button type="button" onclick="shareRichCmd('insertUnorderedList')">• 列表</button>
+                                <button type="button" onclick="shareRichCmd('insertOrderedList')">1. 列表</button>
+                                <button type="button" onclick="shareRichInsertLink()">链接</button>
+                                <span class="sep"></span>
+                                <button type="button" onclick="shareRichInsertImageUrl()">图片URL</button>
+                                <button type="button" onclick="shareRichInsertGifUrl()">GIF URL</button>
+                                <label class="share-rich-upload">上传图片/GIF
+                                    <input type="file" id="shareMediaImageFile" hidden accept="image/png,image/jpeg,image/gif,image/webp" onchange="onShareMediaFile(event,'image')">
+                                </label>
+                                <button type="button" onclick="shareRichInsertVideoUrl()">视频URL</button>
+                                <label class="share-rich-upload">上传视频
+                                    <input type="file" id="shareMediaVideoFile" hidden accept="video/mp4,video/webm" onchange="onShareMediaFile(event,'video')">
+                                </label>
+                                <button type="button" onclick="shareRichInsertEmbed()">嵌入视频</button>
+                                <span class="sep"></span>
+                                <button type="button" onclick="shareRichCmd('removeFormat')">清除格式</button>
+                                <button type="button" onclick="shareRichToggleSource()">源码</button>
+                            </div>
+                            <div class="share-editor-toolbar share-md-toolbar" id="shareMdToolbar" hidden>
+                                <button type="button" onclick="shareMdInsertHeading(2)">H2</button>
+                                <button type="button" onclick="shareMdInsertHeading(3)">H3</button>
+                                <button type="button" onclick="shareMdWrap('**', '**')" title="加粗"><b>B</b></button>
+                                <button type="button" onclick="shareMdWrap('`', '`')" title="行内代码">`</button>
+                                <button type="button" onclick="shareMdInsertList('- ')">• 列表</button>
+                                <button type="button" onclick="shareMdInsertList('1. ')">1. 列表</button>
+                                <button type="button" onclick="shareMdInsertLink()">链接</button>
+                                <button type="button" onclick="shareMdInsertImage()">图片</button>
+                            </div>
+                            <div id="shareRichEditor" class="share-rich-editor" contenteditable="true" data-placeholder="在此输入富文本内容，可插入 GIF / 视频…" oninput="onShareRichInput()"></div>
+                            <textarea id="shareDocContent" class="share-md-editor" hidden placeholder="在此编写 Markdown 内容…" oninput="refreshShareDocPreview()"></textarea>
+                        </div>
+                    </div>
+                    <div class="share-editor-pane">
+                        <label>预览</label>
+                        <div class="share-preview" id="shareDocPreview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="shareDocVersionsModal" class="rules-modal" hidden onclick="closeShareDocVersionsModal()">
+        <div class="rules-modal-dialog" style="width:min(720px,96vw);z-index:3350;" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>版本历史</span>
+                <button type="button" class="rules-modal-close" onclick="closeShareDocVersionsModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint">保存内容变更时自动快照（最多 30 条）。恢复后当前编辑器未保存内容将被覆盖。</p>
+                <div class="share-version-diff-bar">
+                    <label>对比</label>
+                    <select id="shareDocVersionFrom"></select>
+                    <span>→</span>
+                    <select id="shareDocVersionTo"></select>
+                    <button type="button" class="btn-ghost" onclick="compareShareDocVersions()">对比差异</button>
+                </div>
+                <div class="report-table-wrap" style="max-height:36vh;overflow:auto;">
+                    <table class="report-table share-version-table">
+                        <thead>
+                            <tr><th>时间</th><th>大小</th><th>格式</th><th></th></tr>
+                        </thead>
+                        <tbody id="shareDocVersionsBody">
+                            <tr><td colspan="4" class="empty-state">加载中…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="shareDocVersionDiffPanel" class="share-version-diff-panel" hidden>
+                    <div class="share-version-diff-head">
+                        <span id="shareDocVersionDiffSummary"></span>
+                    </div>
+                    <pre id="shareDocVersionDiffBody" class="share-version-diff-body"></pre>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="shareDocVersionsStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="closeShareDocVersionsModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shareStationFormModal" class="rules-modal" hidden onclick="closeShareStationForm()">
+        <div class="rules-modal-dialog" style="width:min(480px,96vw)" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>新建文档站</span>
+                <button type="button" class="rules-modal-close" onclick="closeShareStationForm()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="threshold-grid">
+                    <div style="grid-column:1/-1">
+                        <label>名称</label>
+                        <input type="text" id="shareStationName" placeholder="例如 process-team">
+                    </div>
+                    <div style="grid-column:1/-1">
+                        <label>标识 / URL（可选）</label>
+                        <input type="text" id="shareStationUrl" placeholder="docs.example.com">
+                    </div>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="shareStationFormStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="closeShareStationForm()">取消</button>
+                <button type="button" class="btn-save-rules" onclick="saveShareStationForm()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stressModal" class="rules-modal" hidden onclick="closeStressModal()">
+        <div class="rules-modal-dialog stress-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>压力测试</span>
+                <button type="button" class="rules-modal-close" onclick="closeStressModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint" id="stressSelectedHint">将对勾选的录制请求按顺序循环回放（类似 Apifox 性能测试）。</p>
+                <p class="hint" id="stressPostOpsHint">若请求上已配置「提取变量 / 断言 / 数据库」后置操作，压测回放时会自动执行：提取结果按虚拟用户隔离并替换后续请求中的 ${变量} / {{变量}}；断言失败计入失败；数据库后置仅支持 MySQL。</p>
+                <div class="stress-row">
+                    <label>并发用户数 <span class="tip" title="同时发起请求的虚拟用户数">i</span></label>
+                    <input type="range" id="stressUsersRange" min="1" max="5000" value="10" oninput="syncStressField('users', this.value)">
+                    <div class="stress-input">
+                        <input type="number" id="stressUsers" min="1" max="5000" value="10" oninput="syncStressField('users', this.value)">
+                    </div>
+                </div>
+                <div class="stress-row">
+                    <label>运行时间 <span class="tip" title="压测持续时长">i</span></label>
+                    <input type="range" id="stressDurationRange" min="1" max="60" value="1" oninput="syncStressField('durationMin', this.value)">
+                    <div class="stress-input">
+                        <input type="number" id="stressDuration" min="1" max="60" value="1" oninput="syncStressField('durationMin', this.value)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="stress-row">
+                    <label>爬坡时间 <span class="tip" title="虚拟用户从 0 逐步增加到目标并发所需时间">i</span></label>
+                    <input type="range" id="stressRampRange" min="0" max="30" value="0" oninput="syncStressField('rampUpMin', this.value)">
+                    <div class="stress-input">
+                        <input type="number" id="stressRamp" min="0" max="30" value="0" oninput="syncStressField('rampUpMin', this.value)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="stress-result" id="stressResult">尚未开始</div>
+            </div>
+            <div class="rules-modal-foot">
+                <button type="button" class="btn-stress-report" onclick="openStressReportModal()">测试报告</button>
+                <span class="hint" id="stressStatus"></span>
+                <button type="button" class="btn-stress-stop" id="stressStopBtn" hidden onclick="stopStressTest()">停止</button>
+                <button type="button" class="btn-stress-run" id="stressRunBtn" onclick="runStressTest()">▶ 运行</button>
+                <button type="button" class="btn-stress-save" onclick="saveStressConfig()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stressReportModal" class="rules-modal" hidden onclick="closeStressReportModal()">
+        <div class="rules-modal-dialog report-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>测试报告</span>
+                <div class="report-head-actions">
+                    <button type="button" class="btn-report-tool" onclick="openStressThresholdModal()">阈值告警</button>
+                    <button type="button" class="btn-report-tool" id="stressBaselineBtn" onclick="toggleStressBaseline()">设为基线</button>
+                    <button type="button" class="btn-report-tool" onclick="openStressCompareModal()">对比报告</button>
+                    <div class="report-dl-wrap">
+                        <button type="button" class="btn-report-download" onclick="toggleReportDownloadMenu(event)">下载</button>
+                        <div id="reportDownloadMenu" class="report-dl-menu" hidden>
+                            <button type="button" onclick="downloadStressReportFile('html')">下载 HTML</button>
+                            <button type="button" onclick="downloadStressReportFile('pdf')">下载 PDF</button>
+                        </div>
+                    </div>
+                    <button type="button" class="rules-modal-close" onclick="closeStressReportModal()" aria-label="关闭">×</button>
+                </div>
+            </div>
+            <div class="rules-modal-body">
+                <div class="report-list">
+                    <select id="stressReportSelect" onchange="loadStressReportDetail(this.value)"></select>
+                </div>
+                <div id="reportAlertBanner" class="report-alert-banner" hidden></div>
+                <div class="report-cards">
+                    <div class="report-card" id="reportCardTotal"><div class="label">总请求次数</div><div class="value" id="reportTotal">0</div></div>
+                    <div class="report-card" id="reportCardRps"><div class="label">每秒接口请求数</div><div class="value" id="reportRps">0</div></div>
+                    <div class="report-card" id="reportCardAvg"><div class="label">平均响应时间</div><div class="value" id="reportAvg">0<span class="unit">ms</span></div></div>
+                    <div class="report-card" id="reportCardDb"><div class="label">平均 DB 耗时</div><div class="value" id="reportDbAvg">0<span class="unit">ms</span></div></div>
+                    <div class="report-card" id="reportCardFail"><div class="label">请求失败率</div><div class="value" id="reportFail">0.00<span class="unit">%</span></div></div>
+                </div>
+                <div class="report-chart-wrap">
+                    <div class="report-chart-head">
+                        <span class="report-chart-title">性能趋势</span>
+                        <div class="report-legend">
+                            <span class="rps">每秒接口请求数</span>
+                            <span class="rt">平均响应时间</span>
+                            <span class="fail">请求失败率</span>
+                            <span class="vu">并发用户数</span>
+                        </div>
+                        <div class="report-chart-head-actions">
+                            <button type="button" class="btn-chart-fs" onclick="openReportChartFullscreen()">全屏</button>
+                        </div>
+                    </div>
+                    <div class="report-chart-canvas" id="reportChartCanvas">
+                        <svg id="reportChart" viewBox="0 0 1100 300" width="100%" height="100%" preserveAspectRatio="none"></svg>
+                        <div id="reportChartTooltip" class="report-chart-tooltip" hidden></div>
+                    </div>
+                    <div class="report-chart-time-axis" id="reportChartTimeAxis"></div>
+                </div>
+                <div class="report-table-wrap">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>接口请求</th>
+                                <th>总请求次数</th>
+                                <th>每秒接口请求数</th>
+                                <th>平均响应时间</th>
+                                <th>最小响应时间</th>
+                                <th>最大响应时间</th>
+                                <th>90% 响应时间</th>
+                                <th>失败率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportApiBody">
+                            <tr><td colspan="8" class="empty-state">暂无报告</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="report-execution-wrap">
+                    <div class="report-execution-head">
+                        <span class="report-execution-title">请求执行记录</span>
+                        <div class="report-execution-tabs">
+                            <button type="button" class="active" data-report-execution-filter="all" onclick="setStressExecutionFilter('all')">全部</button>
+                            <button type="button" data-report-execution-filter="pass" onclick="setStressExecutionFilter('pass')">通过</button>
+                            <button type="button" data-report-execution-filter="fail" onclick="setStressExecutionFilter('fail')">失败</button>
+                        </div>
+                        <div class="report-execution-filters">
+                            <input id="reportExecutionNameFilter" class="report-execution-search" type="search" placeholder="搜索接口名称、路径或 URL" aria-label="接口名称搜索" oninput="resetStressExecutionPage()">
+                            <div class="report-execution-time-range" role="group" aria-label="请求时间区间">
+                                <input id="reportExecutionTimeStart" class="report-execution-time-input" type="datetime-local" step="0.001" aria-label="请求开始时间" title="请求开始时间" oninput="resetStressExecutionPage()">
+                                <span>至</span>
+                                <input id="reportExecutionTimeEnd" class="report-execution-time-input" type="datetime-local" step="0.001" aria-label="请求结束时间" title="请求结束时间" oninput="resetStressExecutionPage()">
+                            </div>
+                            <button type="button" class="report-execution-clear" onclick="clearStressExecutionSearch()">清除</button>
+                        </div>
+                        <span id="reportExecutionNote" class="report-execution-note"></span>
+                    </div>
+                    <div id="reportExecutionBody" class="report-execution-list"></div>
+                    <div class="report-execution-pagination" aria-label="请求执行记录分页">
+                        <span>每页</span>
+                        <select id="reportExecutionPageSize" aria-label="每页记录数" onchange="setStressExecutionPageSize(this.value)">
+                            <option value="20">20 条</option>
+                            <option value="50" selected>50 条</option>
+                            <option value="100">100 条</option>
+                            <option value="200">200 条</option>
+                        </select>
+                        <button id="reportExecutionFirstPage" type="button" onclick="setStressExecutionPage(1)">首页</button>
+                        <button id="reportExecutionPrevPage" type="button" onclick="setStressExecutionPage(stressExecutionPage - 1)">上一页</button>
+                        <span id="reportExecutionPageInfo" class="report-execution-page-info">第 1 / 1 页</span>
+                        <button id="reportExecutionNextPage" type="button" onclick="setStressExecutionPage(stressExecutionPage + 1)">下一页</button>
+                        <button id="reportExecutionLastPage" type="button" onclick="setStressExecutionPage(stressExecutionPageTotal)">末页</button>
+                    </div>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="stressReportStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="deleteCurrentStressReport()">删除报告</button>
+                <button type="button" class="btn-close-rules" onclick="closeStressReportModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportChartFsModal" class="rules-modal" hidden onclick="closeReportChartFullscreen()">
+        <div class="rules-modal-dialog chart-fs-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>性能趋势 · 全屏</span>
+                <div class="report-head-actions">
+                    <div class="report-legend" style="position:static;transform:none;max-width:none;pointer-events:none;">
+                        <span class="rps">每秒接口请求数</span>
+                        <span class="rt">平均响应时间</span>
+                        <span class="fail">请求失败率</span>
+                        <span class="vu">并发用户数</span>
+                    </div>
+                    <button type="button" class="rules-modal-close" onclick="closeReportChartFullscreen()" aria-label="关闭">×</button>
+                </div>
+            </div>
+            <div class="rules-modal-body">
+                <div class="chart-fs-canvas" id="reportChartFsCanvas">
+                    <svg id="reportChartFs" viewBox="0 0 1400 520" width="100%" height="100%" preserveAspectRatio="none"></svg>
+                    <div id="reportChartFsTooltip" class="report-chart-tooltip" hidden></div>
+                </div>
+                <div class="report-chart-time-axis chart-fs-time-axis" id="reportChartFsTimeAxis"></div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint">按 Esc 或点击关闭退出全屏</span>
+                <button type="button" class="btn-close-rules" onclick="closeReportChartFullscreen()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stressApiDetailModal" class="rules-modal" hidden onclick="closeStressApiDetail()">
+        <div class="rules-modal-dialog stress-api-detail-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head"><span id="stressApiDetailTitle">请求详情</span><button type="button" class="rules-modal-close" onclick="closeStressApiDetail()" aria-label="关闭">×</button></div>
+            <div class="rules-modal-body" id="stressApiDetailBody"></div>
+            <div class="rules-modal-foot"><button type="button" class="btn-close-rules" onclick="closeStressApiDetail()">关闭</button></div>
+        </div>
+    </div>
+
+    <div id="stressThresholdModal" class="rules-modal" hidden onclick="closeStressThresholdModal()">
+        <div class="rules-modal-dialog" onclick="event.stopPropagation()" style="width:min(640px,96vw)">
+            <div class="rules-modal-head">
+                <span>阈值告警</span>
+                <button type="button" class="rules-modal-close" onclick="closeStressThresholdModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint" style="margin-top:0">开启后，压测结束保存报告时会自动判定阈值；打开报告时也会重新判定。失败率 / RT / P90 / P95 / DB 为「不超过」上限，RPS 为「不低于」下限（0 表示不检查）。</p>
+                <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;">
+                    <input type="checkbox" id="thEnabled" checked>
+                    启用阈值告警
+                </label>
+                <div class="threshold-grid">
+                    <div>
+                        <label>最大失败率 (%)</label>
+                        <input type="number" id="thMaxFailRate" min="0" max="100" step="0.01" value="1">
+                    </div>
+                    <div>
+                        <label>最大平均响应 (ms)</label>
+                        <input type="number" id="thMaxAvg" min="0" step="1" value="500">
+                    </div>
+                    <div>
+                        <label>最大 P90 (ms)</label>
+                        <input type="number" id="thMaxP90" min="0" step="1" value="1000">
+                    </div>
+                    <div>
+                        <label>最大 P95 (ms)</label>
+                        <input type="number" id="thMaxP95" min="0" step="1" value="1500">
+                    </div>
+                    <div>
+                        <label>最小 RPS（0=不限）</label>
+                        <input type="number" id="thMinRps" min="0" step="0.01" value="0">
+                    </div>
+                    <div>
+                        <label>最大平均 DB 耗时（0=不限）</label>
+                        <input type="number" id="thMaxAvgDb" min="0" step="1" value="0">
+                    </div>
+                </div>
+                <div class="threshold-notify">
+                    <p class="notify-hint">Webhook / 邮件等通知渠道请在 <strong>通用设置 → 通知设置</strong> 中统一配置。</p>
+                    <div class="notify-summary" id="thNotifySummary">通知渠道：加载中…</div>
+                    <button type="button" class="btn-ghost" style="margin-bottom:10px;" onclick="openThresholdNotifySettings()">前往通知设置</button>
+                    <div class="notify-row">
+                        <label><input type="checkbox" id="thWebhookOnFail" checked> 阈值失败时通知</label>
+                        <label><input type="checkbox" id="thWebhookOnPass"> 阈值通过时也通知</label>
+                    </div>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="thresholdStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="closeStressThresholdModal()">取消</button>
+                <button type="button" class="btn-save-rules" onclick="saveStressThresholds()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="stressCompareModal" class="rules-modal" hidden onclick="closeStressCompareModal()">
+        <div class="rules-modal-dialog compare-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>对比历史报告</span>
+                <button type="button" class="rules-modal-close" onclick="closeStressCompareModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="compare-pick">
+                    <div>
+                        <label>基线报告</label>
+                        <select id="compareBaselineSelect"></select>
+                    </div>
+                    <div>
+                        <label>当前报告</label>
+                        <select id="compareCurrentSelect"></select>
+                    </div>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <button type="button" class="btn-save-rules" onclick="runStressCompare()">开始对比</button>
+                    <span class="hint" id="compareStatus" style="margin-left:10px;"></span>
+                </div>
+                <div class="compare-summary" id="compareSummary"></div>
+                <div class="compare-overlay-wrap" id="compareOverlayWrap" hidden>
+                    <div class="report-chart-title">性能趋势叠图（基线 vs 当前）</div>
+                    <div class="compare-overlay-legend">
+                        <span class="b-rt">基线平均 RT</span>
+                        <span class="c-rt">当前平均 RT</span>
+                        <span class="b-rps">基线 RPS</span>
+                        <span class="c-rps">当前 RPS</span>
+                    </div>
+                    <div class="compare-overlay-canvas">
+                        <svg id="compareOverlayChart" viewBox="0 0 900 220" width="100%" height="100%" preserveAspectRatio="none"></svg>
+                    </div>
+                </div>
+                <div class="compare-counts" id="compareCounts"></div>
+                <div class="report-table-wrap">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>接口</th>
+                                <th title="按 Method + Path 匹配两份报告中的接口">对比状态</th>
+                                <th>次数 Δ</th>
+                                <th>RPS Δ</th>
+                                <th>平均 RT Δ</th>
+                                <th>P90 Δ</th>
+                                <th>失败率 Δ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compareApiBody">
+                            <tr><td colspan="7" class="empty-state">选择两份报告后点击「开始对比」</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="rules-modal-foot">
+                <button type="button" class="btn-reset-rules" onclick="downloadStressCompareReport()">下载对比 JSON</button>
+                <button type="button" class="btn-close-rules" onclick="closeStressCompareModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storageModal" class="rules-modal" hidden onclick="closeStorageModal()">
+        <div class="rules-modal-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <h3>记录存储</h3>
+                <button type="button" class="rules-modal-close" onclick="closeStorageModal()">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <p class="hint">抓包记录默认写入本机 SQLite。也可选已配置的 MySQL / PostgreSQL 连接落盘。切换存储不会迁移已有数据，列表会加载目标库里的记录。</p>
+                <div class="persist-choice">
+                    <label>
+                        <input type="radio" name="persistEngine" value="sqlite" id="persistSqlite" checked onchange="onPersistEngineChange()">
+                        <span>SQLite（默认）<br><span class="hint">文件 data/records.sqlite，无需额外配置</span></span>
+                    </label>
+                    <label>
+                        <input type="radio" name="persistEngine" value="mysql" id="persistMysql" onchange="onPersistEngineChange()">
+                        <span>MySQL</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="persistEngine" value="postgres" id="persistPostgres" onchange="onPersistEngineChange()">
+                        <span>PostgreSQL</span>
+                    </label>
+                </div>
+                <div class="persist-mysql-wrap" id="persistRemoteWrap">
+                    <select id="persistRemoteConn"></select>
+                    <button type="button" class="btn-ghost" onclick="openDbConnModal()">管理连接</button>
+                    <button type="button" class="btn-ghost" onclick="testPersistRemote()">测试连接</button>
+                </div>
+                <div class="hint" id="persistRemoteHint">请选择对应类型且已填写数据库名的连接。</div>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="storageModalStatus"></span>
+                <button type="button" class="btn-close-rules" onclick="closeStorageModal()">取消</button>
+                <button type="button" class="btn-save-rules" onclick="saveStorageSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rulesModal" class="rules-modal" hidden onclick="closeRulesModal()">
+        <div class="rules-modal-dialog" onclick="event.stopPropagation()">
+            <div class="rules-modal-head">
+                <span>jmeter-exporter</span>
+                <button type="button" class="rules-modal-close" onclick="closeRulesModal()" aria-label="关闭">×</button>
+            </div>
+            <div class="rules-modal-body">
+                <fieldset>
+                    <legend>rules.txt</legend>
+                    <textarea id="pluginRules" spellcheck="false"></textarea>
+                </fieldset>
+            </div>
+            <div class="rules-modal-foot">
+                <span class="hint" id="rulesStatus"></span>
+                <button type="button" class="btn-reset-rules" onclick="resetPluginRules()">恢复默认</button>
+                <button type="button" class="btn-save-rules" onclick="savePluginRules()">保存</button>
+                <button type="button" class="btn-close-rules" onclick="closeRulesModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentRecords = [];
+        let selectedId = '';
+        let autoRefresh = true;
+        let capturePaused = false;
+        let settingsReady = false;
+        let storageType = 'json';
+        let storageInfo = { type: 'json' };
+        let captureSettings = { persistEngine: 'sqlite', mysqlConnectionId: '', postgresConnectionId: '' };
+        let recordsFingerprint = '';
+        let loadSeq = 0;
+        let detailSeq = 0;
+        let filterTimer = 0;
+        let dismissedErrorAt = 0;
+        const copyPayloads = {};
+        let correlatePreview = { vars: [], jwtClaims: [] };
+        let correlateEdits = { disabled: [], rename: {}, jsonPath: {}, regex: {} };
+        let selectedRecord = null;
+        let extractItems = [];
+        let editingExtractId = '';
+        let extractPreviewTimer = 0;
+        let jpNodeCount = 0;
+        let activeSourceTreeId = 'jpTree';
+        let assertItems = [];
+        let editingAssertId = '';
+        let assertPreviewTimer = 0;
+        let dbOpItems = [];
+        let editingDbOpId = '';
+        let dbExtractRows = [];
+        let dbSqlResultData = null;
+        let activeDbExtractIdx = 0;
+        let dbExtractPreviewTimer = null;
+        let dbConnections = [];
+        const checkedIdSet = new Set();
+        const ROW_HEIGHT = 40;
+        const VIRTUAL_OVERSCAN = 10;
+        const VIRTUAL_THRESHOLD = 100;
+        let filteredCache = [];
+        let filteredMaxDuration = 0;
+        let virtualScrollBound = false;
+        let refreshTimer = null;
+        let refreshIntervalMs = 5000;
+
+        const PLUGIN_WEB_ROOT = '__PLUGIN_WEB_ROOT__';
+
+        function detectPluginWebRootFromScripts() {
+            const marker = '/plugin.jmeter-exporter/';
+            const scripts = document.querySelectorAll('script[src]');
+            for (let i = 0; i < scripts.length; i += 1) {
+                const src = String(scripts[i].src || '');
+                const idx = src.indexOf(marker);
+                if (idx >= 0) return src.slice(0, idx + marker.length);
+            }
+            return '';
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function pluginApiUrl(path) {
+            const rel = String(path || '').replace(/^\.\//, '');
+            const rootFromScript = detectPluginWebRootFromScripts();
+            if (rootFromScript) return rootFromScript + rel;
+            const root = String(typeof PLUGIN_WEB_ROOT === 'string' ? PLUGIN_WEB_ROOT : '').trim();
+            if (root && root.indexOf('__PLUGIN_WEB_ROOT__') === -1) {
+                return root.replace(/\/?$/, '/') + rel;
+            }
+            let base = String(window.location.pathname || '/');
+            base = base.replace(/\/share\/[^/]*\/?$/, '/');
+            const pluginMatch = base.match(/^(.*\/plugin\.jmeter-exporter)\/?$/);
+            if (pluginMatch) return pluginMatch[1] + '/' + rel;
+            if (!/\/$/.test(base)) {
+                base = base.replace(/\/[^/]*$/, '/');
+            }
+            if (!base || base === '/') return './' + rel;
+            return base + rel;
+        }
+
+        function getCheckedIds() {
+            return Array.from(checkedIdSet);
+        }
+
+        function pruneCheckedIds() {
+            const alive = new Set(currentRecords.map((record) => String(record.id)));
+            Array.from(checkedIdSet).forEach((id) => {
+                if (!alive.has(id)) checkedIdSet.delete(id);
+            });
+        }
+
+    </script>
+    <script src="./bootstrap-ui.js"></script>
+    <script src="./records-core-ui.js"></script>
+    <script src="./postops-ui.js"></script>
+    <script src="./rules-correlate-ui.js"></script>
+    <script src="./general-settings-ui.js"></script>
+    <script src="./websocket-ui.js"></script>
+    <script src="./share-ui.js"></script>
+    <script src="./stress-ui.js"></script>
+</body>
+</html>
